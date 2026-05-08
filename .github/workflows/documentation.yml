@@ -14,19 +14,29 @@ jobs:
       contents: write
       pull-requests: read
       statuses: write
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
+      - uses: actions/checkout@v6
+
+      - uses: julia-actions/setup-julia@v3
         with:
-          version: '1'
-      - uses: julia-actions/cache@v2
+          version: '1.11'
+
+      - uses: julia-actions/cache@v3
+        with:
+          cache-name: docs-julia-cache
+          cache-compiled: true
+
       - name: Install dependencies
         shell: julia --color=yes --project=docs {0}
         run: |
           using Pkg
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
+          Pkg.precompile()
+
       - name: Build and deploy
         run: julia --color=yes --project=docs docs/make.jl
         env:

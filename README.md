@@ -2,7 +2,7 @@
 <img width="800" height="100" src="assets/logo_with_text.png">
 </p>
 
-[![Dev](https://img.shields.io/badge/docs-stable-blue?logo=Julia&logoColor=white)](https://TUM-ITR.github.io/ode-mh-planner)
+[![Dev](https://img.shields.io/badge/docs-stable-blue?logo=Julia&logoColor=white)](https://TUM-ITR.github.io/ode-mh-planner/dev/)
 [![DOI](https://zenodo.org/badge/1110854072.svg)](https://doi.org/10.5281/zenodo.18183541)
 
 **OdeMHPlanner** provides a framework for **uncertainty-aware learning and planning** in dynamical systems with unknown dynamics and infrequent output measurements. 
@@ -25,7 +25,7 @@ The approach combines:
 
 This enables principled uncertainty quantification and safer decision-making compared to point-estimate-based methods.
 
-For detailed instructions and examples, please refer to the **[Documentation](https://TUM-ITR.github.io/ode-mh-planner)**.
+For detailed instructions and examples, please refer to the **[Documentation](https://TUM-ITR.github.io/ode-mh-planner/dev/)**.
 
 ## Installation
 
