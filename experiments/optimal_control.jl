@@ -8,7 +8,7 @@ using Distributions
 using DifferentialEquations
 using Plots
 using Printf
-using OdeMMHPlanner
+using OdeMHPlanner
 
 global hsl_available = false
 try
@@ -25,7 +25,7 @@ include(joinpath(@__DIR__, "ExtendedKalmanFilter.jl"))
 Random.seed!(40)
 
 ## Learning parameters
-K = 100 # number of MMH samples in final stage
+K = 100 # number of MH samples in final stage
 k_d = 20 # number of samples to be skipped to decrease correlation (thinning)
 K_b = 200 # length of burn-in period for each stage
 M_chunk = 5 # number of datapoints added at each stage
@@ -222,11 +222,11 @@ log_pdf_x_init(x_init) = -0.5 * sum((x_init - x_init_mean) .* (Diagonal(x_init_v
 x_init_0 = x_init_mean
 
 # Proposal distribution for z = (theta, x_init)
-# For the staged MMH sampler, the proposal distribution is adapted at each stage based on the samples obtained so far.
+# For the staged MH sampler, the proposal distribution is adapted at each stage based on the samples obtained so far.
 # Here, we only define the initial proposal distribution for the first stage.
 proposal_z_cov_0 = Diagonal(alpha * vcat(theta_var, x_init_var))
 
-# For a standard MMH sampler, the proposal distribution can be defined as follows:
+# For a standard MH sampler, the proposal distribution can be defined as follows:
 # proposal_z_cov = Diagonal(0.01 * vcat(theta_var, x_init_var))
 # propose_z(z) = rand(MvNormal(z, proposal_z_cov))
 # log_proposal_ratio_z(z_accepted, z_prop) = 0
@@ -254,7 +254,7 @@ x_init_true = rand(MvNormal(x_init_mean, Diagonal(x_init_var)))
 # the effect of the meal disturbance. This use of the true parameters is solely for generating the training
 # input trajectory.
 #
-# Importantly, the true patient parameters are not available to the MMH sampler or to the optimal
+# Importantly, the true patient parameters are not available to the MH sampler or to the optimal
 # control problem; they are only used here to produce realistic training data.
 const p2_nom = 0.015
 const p3_nom = 2e-6
@@ -309,12 +309,12 @@ xlabel!("t")
 ylabel!("x | y")
 display(p0)
 
-## MMH sampling
-# Run a staged MMH sampler with ODE-integrated latent trajectories.
-MMH_samples, acceptance_ratio, runtime_sampling = staged_ODE_MMH(u_t_bolus, t_m, y, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, proposal_z_cov_0, M_chunk, K_stage, alpha; regularizer=regularizer, ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)
+## MH sampling
+# Run a staged MH sampler with ODE-integrated latent trajectories.
+MH_samples, acceptance_ratio, runtime_sampling = staged_ODE_MH(u_t_bolus, t_m, y, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, proposal_z_cov_0, M_chunk, K_stage, alpha; regularizer=regularizer, ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)
 
 ## Formulate and solve optimal control problem
-# Formulate the optimal control problem (OCP) using the MMH samples.
+# Formulate the optimal control problem (OCP) using the MH samples.
 # Cost function
 const G_REF = 80.0  # reference glucose level in mg/dL
 const U_BASAL = 0.0 # basal level in mU/L/min
@@ -364,17 +364,17 @@ if hsl_available
 end
 
 # Run optimization.
-U_MMH, X_MMH, t_grid, J_MMH, solve_successful_MMH, iterations_MMH, runtime_optimization_MMH = solve_MMH_OCP(MMH_samples, n_u, f_theta, g_theta, H, N, c, c_f, h_scenario, h_u; solver_opts=Ipopt_options, rk4_step_size=rk4_step_size)
+U_MH, X_MH, t_grid, J_MH, solve_successful_MH, iterations_MH, runtime_optimization_MH = solve_MH_OCP(MH_samples, n_u, f_theta, g_theta, H, N, c, c_f, h_scenario, h_u; solver_opts=Ipopt_options, rk4_step_size=rk4_step_size)
 
 # Get optimal input trajectory as a function of time.
-function u_t_MMH(t)
+function u_t_MH(t)
     if t <= t_grid[1]
-        return @view U_MMH[:, 1]
+        return @view U_MH[:, 1]
     elseif t >= t_grid[end]
-        return @view U_MMH[:, end]
+        return @view U_MH[:, end]
     else
         i = searchsortedlast(t_grid, t)
-        return @view U_MMH[:, i]
+        return @view U_MH[:, i]
     end
 end
 
@@ -383,15 +383,15 @@ end
 pred_step_size = rk4_step_size
 t_pred = collect(0.0:pred_step_size:H)
 t_span_pred = (0.0, H)
-ode_rhs_MMH(dx, x, p, t) = f_theta!(dx, theta_true, x, u_t_MMH(t), t)
-prob_MMH = ODEProblem(ode_rhs_MMH, x_0_true, t_span_pred, theta_true)
-sol_MMH = solve(prob_MMH, Tsit5(); saveat=t_pred)
-x_true_MMH = Array(sol_MMH)
+ode_rhs_MH(dx, x, p, t) = f_theta!(dx, theta_true, x, u_t_MH(t), t)
+prob_MH = ODEProblem(ode_rhs_MH, x_0_true, t_span_pred, theta_true)
+sol_MH = solve(prob_MH, Tsit5(); saveat=t_pred)
+x_true_MH = Array(sol_MH)
 
 # Compute the true cost of the optimized trajectory.
-J_running = sum(c(u_t_MMH(t_pred[i]), x_true_MMH[:, i], t_pred[i]) * pred_step_size for i in 1:length(t_pred)-1)
-J_terminal = c_f(x_true_MMH[:, end])
-J_true_MMH = J_running + J_terminal
+J_running = sum(c(u_t_MH(t_pred[i]), x_true_MH[:, i], t_pred[i]) * pred_step_size for i in 1:length(t_pred)-1)
+J_terminal = c_f(x_true_MH[:, end])
+J_true_MH = J_running + J_terminal
 
 # Check if the constraints are satisfied.
 function check_constraints(t_grid, u_t, x_true, h_scenario, h_u, eps)
@@ -418,13 +418,13 @@ function check_constraints(t_grid, u_t, x_true, h_scenario, h_u, eps)
 end
 
 eps = 1e-4 # small tolerance
-h_scenario_satisfied_MMH, h_u_satisfied_MMH = check_constraints(t_grid, u_t_MMH, x_true_MMH, h_scenario, h_u, eps)
+h_scenario_satisfied_MH, h_u_satisfied_MH = check_constraints(t_grid, u_t_MH, x_true_MH, h_scenario, h_u, eps)
 
 @printf("Simulation done.\nStarting simulation of comparison method 1: Nominal model based optimal control\n")
 
 ## Comparison method 1: Nominal model based optimal control
 # In the following we compute the input trajectory using a nominal model with an EKF state estimate.
-# Define nominal model and EKF parameters.
+# For the nominal model, the parameters are fixed at the geometric mean of their corresponding prior distributions.
 theta_nom = theta_mean
 
 f_nominal(x, u, t) = f_theta(theta_nom, x, u, t)
@@ -455,8 +455,8 @@ display(p_ekf_3)
 =#
 
 # Formulate the OCP using the nominal model and EKF state estimate at time t=0.
-model_nom = [MMH_sample(theta_nom, x_hat_hist[:, end], x_init_mean)]
-U_nom, X_nom, t_grid_nom, J_nom, solve_successful_nom, iterations_nom, runtime_optimization_nom = solve_MMH_OCP(model_nom, n_u, f_theta, g_theta, H, N, c, c_f, h_scenario, h_u; solver_opts=Ipopt_options, rk4_step_size=rk4_step_size)
+model_nom = [MH_sample(theta_nom, x_hat_hist[:, end], x_init_mean)]
+U_nom, X_nom, t_grid_nom, J_nom, solve_successful_nom, iterations_nom, runtime_optimization_nom = solve_MH_OCP(model_nom, n_u, f_theta, g_theta, H, N, c, c_f, h_scenario, h_u; solver_opts=Ipopt_options, rk4_step_size=rk4_step_size)
 
 # Get nominal model based optimal input trajectory as a function of time.
 function u_t_nom(t)
@@ -495,7 +495,7 @@ h_scenario_satisfied_nom, h_u_satisfied_nom = check_constraints(t_grid, u_t_nom,
 
 #=
 # Draw K samples from the prior.
-MMH_samples_prior = Vector{MMH_sample}(undef, K)
+MH_samples_prior = Vector{MH_sample}(undef, K)
 min_dist = 2 # minimum distance of initial state to constraint boundary
 for k in 1:K
     theta_sample = rand(MvNormal(theta_mean, theta_cov))
@@ -508,11 +508,11 @@ for k in 1:K
         end
     end
     x_init_sample = x_t_sample
-    MMH_samples_prior[k] = MMH_sample(theta_sample, x_t_sample, x_init_sample)
+    MH_samples_prior[k] = MH_sample(theta_sample, x_t_sample, x_init_sample)
 end
 
 # Solve the OCP using the prior samples.
-U_prior, X_prior, t_grid_prior, J_prior, solve_successful_prior, iterations_prior, runtime_optimization_prior = solve_MMH_OCP(MMH_samples_prior, n_u, f_theta, g_theta, H, N, c, c_f, h_scenario, h_u; solver_opts=Ipopt_options, rk4_step_size=rk4_step_size)
+U_prior, X_prior, t_grid_prior, J_prior, solve_successful_prior, iterations_prior, runtime_optimization_prior = solve_MH_OCP(MH_samples_prior, n_u, f_theta, g_theta, H, N, c, c_f, h_scenario, h_u; solver_opts=Ipopt_options, rk4_step_size=rk4_step_size)
 
 # Get prior based optimal input trajectory as a function of time.
 function u_t_prior(t)
@@ -581,14 +581,14 @@ h_scenario_satisfied_bolus, h_u_satisfied_bolus = check_constraints(t_grid, u_t_
 # Print results summary.
 @printf("================ Summary ================\n")
 @printf("\n--- Costs ---\n")
-@printf("MMH OCP:           %10.4f\n", J_true_MMH)
+@printf("MH OCP:           %10.4f\n", J_true_MH)
 @printf("Nominal (EKF) OCP: %10.4f\n", J_true_nom)
 # @printf("Prior OCP:         %10.4f\n", J_true_prior)
 @printf("No Control:        %10.4f\n", J_true_no_control)
 @printf("Bolus input:       %10.4f\n", J_true_bolus)
 @printf("\n--- Constraint satisfaction ---\n")
-@printf("MMH OCP (state constraints):       %s\n", h_scenario_satisfied_MMH ? "Yes" : "No")
-@printf("MMH OCP (input constraints):       %s\n", h_u_satisfied_MMH ? "Yes" : "No")
+@printf("MH OCP (state constraints):       %s\n", h_scenario_satisfied_MH ? "Yes" : "No")
+@printf("MH OCP (input constraints):       %s\n", h_u_satisfied_MH ? "Yes" : "No")
 @printf("Nominal OCP (state constraints):   %s\n", h_scenario_satisfied_nom ? "Yes" : "No")
 @printf("Nominal OCP (input constraints):   %s\n", h_u_satisfied_nom ? "Yes" : "No")
 # @printf("Prior OCP (state constraints):     %s\n", h_scenario_satisfied_prior ? "Yes" : "No")
@@ -606,18 +606,18 @@ x_min_constraint = G_MIN * ones(1, length(t_pred))
 x_max_constraint = G_MAX * ones(1, length(t_pred))
 for i in states_to_plot
     # Calculate mean, maximum, and minimum prediction.
-    x_pred_mean = mean(X_MMH, dims=3)[i, :, 1]
-    x_pred_max = maximum(X_MMH, dims=3)[i, :, 1]
-    x_pred_min = minimum(X_MMH, dims=3)[i, :, 1]
+    x_pred_mean = mean(X_MH, dims=3)[i, :, 1]
+    x_pred_max = maximum(X_MH, dims=3)[i, :, 1]
+    x_pred_min = minimum(X_MH, dims=3)[i, :, 1]
 
     # Plot scenarios.
-    p = plot(t_grid, x_pred_min, fillrange=x_pred_max, alpha=0.35, label="MMH (scenarios)", legend=:topright)
+    p = plot(t_grid, x_pred_min, fillrange=x_pred_max, alpha=0.35, label="MH (scenarios)", legend=:topright)
 
     # Plot mean prediction.
-    plot!(t_grid, x_pred_mean, label="MMH (mean)", lw=2)
+    plot!(t_grid, x_pred_mean, label="MH (mean)", lw=2)
 
     # Plot true output.
-    plot!(t_pred, x_true_MMH[i, :], label="MMH (realized)", lw=2)
+    plot!(t_pred, x_true_MH[i, :], label="MH (realized)", lw=2)
 
     # Plot trajectory of nominal OCP for comparison.
     plot!(t_pred, x_true_nom[i, :], label="Nominal (realized)", lw=2, ls=:dashdot)
@@ -644,9 +644,9 @@ end
 #=
 ## Save data to text file for external plotting.
 include("data2txt.jl")
-x1_min = minimum(X_MMH[1, :, :], dims=2)
-x1_max = maximum(X_MMH[1, :, :], dims=2)
-x1_mean = mean(X_MMH[1, :, :], dims=2)
+x1_min = minimum(X_MH[1, :, :], dims=2)
+x1_max = maximum(X_MH[1, :, :], dims=2)
+x1_mean = mean(X_MH[1, :, :], dims=2)
 
 # The data has to be reduced in size for easier plotting.
 idx = 1:5:length(t_pred)
@@ -657,7 +657,7 @@ data2txt("optimal_control.txt", "t", t_pred[idx],
     "x1_min", x1_min[idx],
     "x1_max", x1_max[idx],
     "x1_mean", x1_mean[idx],
-    "x1_MMH", x_true_MMH[1, idx],
+    "x1_MH", x_true_MH[1, idx],
     "x1_nominal", x_true_nom[1, idx],
 )
 =#

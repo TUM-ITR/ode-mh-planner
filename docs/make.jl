@@ -1,8 +1,8 @@
-using Documenter, OdeMMHPlanner
+using Documenter, OdeMHPlanner
 
 makedocs(
-    sitename="OdeMMHPlanner.jl",
-    modules=[OdeMMHPlanner],
+    sitename="OdeMHPlanner.jl",
+    modules=[OdeMHPlanner],
     checkdocs=:exports,
     warnonly=[:missing_docs],
     pages=[
@@ -17,5 +17,5 @@ makedocs(
 )
 
 deploydocs(
-    repo="github.com/TUM-ITR/ode-mmh-planner.git",
+    repo="github.com/TUM-ITR/ode-mh-planner.git",
 )

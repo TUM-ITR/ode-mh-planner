@@ -6,7 +6,7 @@ using Statistics
 using Plots
 using Printf
 using Logging
-using OdeMMHPlanner
+using OdeMHPlanner
 
 # Define the directory containing the results to analyze and the seeds to plot.
 const RESULTS_DIR = joinpath(@__DIR__, "results", "job_1368") # adjust as needed
@@ -45,14 +45,14 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
     @printf("Aggregating metrics from %d runs\n", n)
 
     # Collect costs.
-    J_true_MMH = Float64[]
+    J_true_MH = Float64[]
     J_true_nom = Float64[]
     J_true_no_control = Float64[]
     J_true_bolus = Float64[]
 
     # Constraint satisfaction flags (per seed)
-    h_scenario_MMH = Bool[]
-    h_u_MMH = Bool[]
+    h_scenario_MH = Bool[]
+    h_u_MH = Bool[]
     h_scenario_nom = Bool[]
     h_u_nom = Bool[]
     h_scenario_no_control = Bool[]
@@ -61,16 +61,16 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
     h_u_bolus = Bool[]
 
     # Track how many scenario/nominal solves were successful.
-    n_MMH_success = 0
+    n_MH_success = 0
     n_nom_success = 0
 
     for (seed, r) in zip(seeds, results)
         # Proposed method
-        if r.solve_successful_MMH
-            n_MMH_success += 1
-            push!(J_true_MMH, r.J_true_MMH)
-            push!(h_scenario_MMH, r.h_scenario_satisfied_MMH)
-            push!(h_u_MMH, r.h_u_satisfied_MMH)
+        if r.solve_successful_MH
+            n_MH_success += 1
+            push!(J_true_MH, r.J_true_MH)
+            push!(h_scenario_MH, r.h_scenario_satisfied_MH)
+            push!(h_u_MH, r.h_u_satisfied_MH)
         else
             @warn "Scenario solve not successful for seed $seed. Skipping results for this seed."
         end
@@ -98,13 +98,13 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
 
     @printf("================ Monte Carlo Summary ================\n")
     @printf("Number of runs loaded:                                     %3d\n", length(results))
-    @printf("Number of times the MMH OCP is solved successfully:        %3d\n", n_MMH_success)
+    @printf("Number of times the MH OCP is solved successfully:        %3d\n", n_MH_success)
     @printf("Number of times the nominal OCP is solved successfully:    %3d\n", n_nom_success)
     @printf("====================================================\n")
 
     mean_or_nan(v) = isempty(v) ? NaN : mean(v)
     @printf("\n--- Cost (mean ± standard deviation) over successful runs ---\n")
-    @printf("MMH-scenario:      %10.1f      ±%10.1f\n", mean_or_nan(J_true_MMH), std(J_true_MMH))
+    @printf("MH-scenario:      %10.1f      ±%10.1f\n", mean_or_nan(J_true_MH), std(J_true_MH))
     @printf("Nominal + EKF:     %10.1f      ±%10.1f\n", mean_or_nan(J_true_nom), std(J_true_nom))
     @printf("No Control:        %10.1f      ±%10.1f\n", mean(J_true_no_control), std(J_true_no_control))
     @printf("Bolus input:       %10.1f      ±%10.1f\n", mean(J_true_bolus), std(J_true_bolus))
@@ -120,10 +120,10 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
     end
 
     @printf("\n--- Constraint violations ---\n")
-    n_v, r = count_violations(h_scenario_MMH)
-    @printf("MMH-scenario (state constraints):           %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_MMH), 100 * r)
-    n_v, r = count_violations(h_u_MMH)
-    @printf("MMH-scenario (input constraints):           %3d / %3d (%.1f %%)\n", n_v, length(h_u_MMH), 100 * r)
+    n_v, r = count_violations(h_scenario_MH)
+    @printf("MH-scenario (state constraints):           %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_MH), 100 * r)
+    n_v, r = count_violations(h_u_MH)
+    @printf("MH-scenario (input constraints):           %3d / %3d (%.1f %%)\n", n_v, length(h_u_MH), 100 * r)
     n_v, r = count_violations(h_scenario_nom)
     @printf("Nominal + EKF (state constraints): %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_nom), 100 * r)
     n_v, r = count_violations(h_u_nom)
@@ -142,9 +142,9 @@ end
 # This function plots predictions and true trajectories for a single run.
 function plot_single_run(result; states_to_plot=[1])
     # Extract data from result.
-    X_MMH = result.X_MMH
+    X_MH = result.X_MH
     t_grid = result.t_grid
-    x_true_MMH = result.x_true_MMH
+    x_true_MH = result.x_true_MH
     x_true_nom = result.x_true_nom
     x_true_no_control = result.x_true_no_control
     x_true_bolus = result.x_true_bolus
@@ -159,18 +159,18 @@ function plot_single_run(result; states_to_plot=[1])
 
     for i in states_to_plot
         # Calculate mean, maximum, and minimum prediction.
-        x_pred_mean = mean(X_MMH, dims=3)[i, :, 1]
-        x_pred_max = maximum(X_MMH, dims=3)[i, :, 1]
-        x_pred_min = minimum(X_MMH, dims=3)[i, :, 1]
+        x_pred_mean = mean(X_MH, dims=3)[i, :, 1]
+        x_pred_max = maximum(X_MH, dims=3)[i, :, 1]
+        x_pred_min = minimum(X_MH, dims=3)[i, :, 1]
 
         # Plot scenarios.
-        p = plot(t_grid, x_pred_min, fillrange=x_pred_max, alpha=0.35, label="MMH (scenarios)", legend=:topright)
+        p = plot(t_grid, x_pred_min, fillrange=x_pred_max, alpha=0.35, label="MH (scenarios)", legend=:topright)
 
         # Plot mean prediction.
-        plot!(t_grid, x_pred_mean, label="MMH (mean)", lw=2)
+        plot!(t_grid, x_pred_mean, label="MH (mean)", lw=2)
 
         # Plot true output.
-        plot!(t_pred, x_true_MMH[i, :], label="MMH (realized)", lw=2)
+        plot!(t_pred, x_true_MH[i, :], label="MH (realized)", lw=2)
 
         # Plot trajectory of nominal OCP for comparison.
         plot!(t_pred, x_true_nom[i, :], label="Nominal (realized)", lw=2, ls=:dashdot)

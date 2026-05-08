@@ -1,5 +1,5 @@
 """
-    solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Function, g_theta::Function, H::Float64, N::Int, c::Function, c_f::Function, h_scenario::Function, h_u::Function; U_init=nothing, MMH_samples_pre_solve=nothing, K_warmup=0, solver_opts=nothing, rk4_step_size=0.1, print_progress=true)
+    solve_MH_OCP(MH_samples::Vector{MH_sample}, n_u::Int, f_theta::Function, g_theta::Function, H::Float64, N::Int, c::Function, c_f::Function, h_scenario::Function, h_u::Function; U_init=nothing, MH_samples_pre_solve=nothing, K_warmup=0, solver_opts=nothing, rk4_step_size=0.1, print_progress=true)
 
 Solve the continous time scenario optimal control problem of the following form:
 
@@ -16,7 +16,7 @@ h_{scenario}(u(t), x^{[k]}(t), t) \\leq 0.
 Here, ``\\Phi(t; \\theta^{[k]}, x^{[k]}(0), u(\\cdot))`` denotes the solution at time ``t`` of the ODE ``\\dot{x}(t) = f_{\\theta}(x(t), u(t))`` with initial condition ``x(0) = x^{[k]}(0)`` and parameter ``\\theta`` under the input trajectory ``u(\\cdot)``.
 
 # Arguments
-- `MMH_samples`: MMH samples
+- `MH_samples`: MH samples
 - `n_u`: number of control inputs
 - `f_theta`: dynamics function parametrized by theta (non mutating); has inputs ``(\\theta, x, u, t)``
 - `g_theta`: measurement function parametrized by theta (non mutating); has inputs ``(\\theta, x, u, t)``
@@ -27,8 +27,8 @@ Here, ``\\Phi(t; \\theta^{[k]}, x^{[k]}(0), u(\\cdot))`` denotes the solution at
 - `h_scenario`: function with input arguments ``(u(t), x^{[k]}(t), t)`` that returns the constraint vector for scenario k at time t; a feasible solution must satisfy ``h_{\\mathrm{scenario}} \\leq 0`` for all scenarios and all discretization points
 - `h_u`: function with input arguments ``(u(t), t)`` that returns the constraint vector for the control inputs; a feasible solution satisfy ``h_u \\leq 0`` at all discretization points
 - `U_init`: initial guess for the input trajectory - either a `n_u x N` array, a function with input argument t, or nothing (default: nothing)
-- `MMH_samples_pre_solve`: if provided, an initial guess for the input trajectory is obtained by solving an OCP with the samples in `MMH_samples_pre_solve` only
-- `K_warmup`: if `K_warmup > 0` and `MMH_samples_pre_solve` is provided, an initial guess for the the input trajectory is obtained in a two stage process: first, an OCP with only `K_warmup` samples from `MMH_samples_pre_solve` is solved and then an OCP with all samples in `MMH_samples_pre_solve`
+- `MH_samples_pre_solve`: if provided, an initial guess for the input trajectory is obtained by solving an OCP with the samples in `MH_samples_pre_solve` only
+- `K_warmup`: if `K_warmup > 0` and `MH_samples_pre_solve` is provided, an initial guess for the the input trajectory is obtained in a two stage process: first, an OCP with only `K_warmup` samples from `MH_samples_pre_solve` is solved and then an OCP with all samples in `MH_samples_pre_solve`
 - `solver_opts`: SolverOptions struct containing options of the solver
 - `rk4_step_size`: step size of the RK4 integrator used to simulate the system dynamics
 - `print_progress`: if set to true, the progress is printed
@@ -42,13 +42,13 @@ Here, ``\\Phi(t; \\theta^{[k]}, x^{[k]}(0), u(\\cdot))`` denotes the solution at
 - `iterations`: number of iterations of the solver
 - `runtime`: runtime of the optimization
 """
-function solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Function, g_theta::Function, H::Float64, N::Int, c::Function, c_f::Function, h_scenario::Function, h_u::Function; U_init=nothing, MMH_samples_pre_solve=nothing, K_warmup=0, solver_opts=nothing, rk4_step_size=0.1, print_progress=true)
+function solve_MH_OCP(MH_samples::Vector{MH_sample}, n_u::Int, f_theta::Function, g_theta::Function, H::Float64, N::Int, c::Function, c_f::Function, h_scenario::Function, h_u::Function; U_init=nothing, MH_samples_pre_solve=nothing, K_warmup=0, solver_opts=nothing, rk4_step_size=0.1, print_progress=true)
     # Time optimization.
     optimization_timer = time()
 
     # Get number of states, etc.
-    K = length(MMH_samples)
-    n_x = size(MMH_samples[1].x_t, 1)
+    K = length(MH_samples)
+    n_x = size(MH_samples[1].x_t, 1)
 
     # Get discretization points.
     dt = H / N
@@ -56,22 +56,22 @@ function solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Funct
 
     # Determine initialization.
     # With a good initialization the runtime of the optimization can be reduced significantly.
-    # If a set of samples `MMH_samples_pre_solve` is provided, the OCP is solved with the samples in `MMH_samples_pre_solve` first to obtain an initialization for the problem.
-    # If additionally `K_warmup` is provided, a problem that only considers `K_warmup` randomly selected scenarios of `MMH_samples_pre_solve` is solved first to obtain an initialization for the problem with all scenarios in `MMH_samples_pre_solve`.
-    if !(MMH_samples_pre_solve === nothing)
+    # If a set of samples `MH_samples_pre_solve` is provided, the OCP is solved with the samples in `MH_samples_pre_solve` first to obtain an initialization for the problem.
+    # If additionally `K_warmup` is provided, a problem that only considers `K_warmup` randomly selected scenarios of `MH_samples_pre_solve` is solved first to obtain an initialization for the problem with all scenarios in `MH_samples_pre_solve`.
+    if !(MH_samples_pre_solve === nothing)
         if K_warmup > 0
             # Sample the K_warmup scenarios that are considered for the initialization.
-            warmup_samples = sample(1:size(MMH_samples_pre_solve, 1), K_warmup)
+            warmup_samples = sample(1:size(MH_samples_pre_solve, 1), K_warmup)
 
             if print_progress
                 println("###### Started pre-solving step")
             end
 
-            # Solve OCP with K_warmup samples from MMH_samples_pre_solve.
-            U_init = solve_MMH_OCP(MMH_samples_pre_solve[warmup_samples], f_theta, g_theta, sample_v_theta, sample_w_theta, H, J, h_scenario, h_u; J_u=J_u, U_init=U_init, K_warmup=0, solver_opts=solver_opts, print_progress=print_progress)[1]
+            # Solve OCP with K_warmup samples from MH_samples_pre_solve.
+            U_init = solve_MH_OCP(MH_samples_pre_solve[warmup_samples], f_theta, g_theta, sample_v_theta, sample_w_theta, H, J, h_scenario, h_u; J_u=J_u, U_init=U_init, K_warmup=0, solver_opts=solver_opts, print_progress=print_progress)[1]
 
-            # Solve OCP with all samples from MMH_samples_pre_solve.
-            U_init = solve_MMH_OCP(MMH_samples_pre_solve, f_theta, g_theta, sample_v_theta, sample_w_theta, H, J, h_scenario, h_u; J_u=J_u, U_init=U_init, K_warmup=0, solver_opts=solver_opts, print_progress=print_progress)[1]
+            # Solve OCP with all samples from MH_samples_pre_solve.
+            U_init = solve_MH_OCP(MH_samples_pre_solve, f_theta, g_theta, sample_v_theta, sample_w_theta, H, J, h_scenario, h_u; J_u=J_u, U_init=U_init, K_warmup=0, solver_opts=solver_opts, print_progress=print_progress)[1]
 
             if print_progress
                 println("###### Pre-solving step complete, switching back to the original problem")
@@ -81,8 +81,8 @@ function solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Funct
                 println("###### Started pre-solving step")
             end
 
-            # Solve OCP with all samples from MMH_samples_pre_solve.
-            U_init = solve_MMH_OCP(MMH_samples_pre_solve, f_theta, g_theta, sample_v_theta, sample_w_theta, H, J, h_scenario, h_u; J_u=J_u, U_init=U_init, K_warmup=0, solver_opts=solver_opts, print_progress=print_progress)[1]
+            # Solve OCP with all samples from MH_samples_pre_solve.
+            U_init = solve_MH_OCP(MH_samples_pre_solve, f_theta, g_theta, sample_v_theta, sample_w_theta, H, J, h_scenario, h_u; J_u=J_u, U_init=U_init, K_warmup=0, solver_opts=solver_opts, print_progress=print_progress)[1]
 
             if print_progress
                 println("###### Pre-solving step complete, switching back to the original problem")
@@ -110,8 +110,8 @@ function solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Funct
     # Determine initial guess for X.
     X_init = Array{Float64}(undef, n_x, N + 1, K)
     for k in 1:K
-        f(x, u, t) = f_theta(MMH_samples[k].theta, x, u, t)
-        X_init[:, 1, k] .= MMH_samples[k].x_t
+        f(x, u, t) = f_theta(MH_samples[k].theta, x, u, t)
+        X_init[:, 1, k] .= MH_samples[k].x_t
 
         # Propagate from t=0 to t=H using RK4 with input U_t_init.
         for n in 1:N
@@ -128,7 +128,7 @@ function solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Funct
     # The runtime could likely be improved by defining the intermediate RK4 steps as optimization variables as well.
     # However, this is not done here to keep the implementation simple.
     for k in 1:K
-        f(x, u, t) = f_theta(MMH_samples[k].theta, x, u, t)
+        f(x, u, t) = f_theta(MH_samples[k].theta, x, u, t)
         for n in 1:N
             @constraint(OCP, X[:, n+1, k] .== rk4_interval_const_u(f, X[:, n, k], U[:, n], (t_grid[n], t_grid[n+1]), rk4_step_size))
         end
@@ -137,7 +137,7 @@ function solve_MMH_OCP(MMH_samples::Vector{MMH_sample}, n_u::Int, f_theta::Funct
     # Set the initial state.
     for k in 1:K
         for i in 1:n_x
-            fix(X[i, 1, k], MMH_samples[k].x_t[i]; force=true)
+            fix(X[i, 1, k], MH_samples[k].x_t[i]; force=true)
         end
     end
 

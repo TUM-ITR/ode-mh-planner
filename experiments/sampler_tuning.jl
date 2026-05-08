@@ -1,4 +1,4 @@
-# This script demonstrates how to tune and evaluate the performance of the MMH sampler with ODE-integrated latent trajectories using a glucose-insulin dynamics model.
+# This script demonstrates how to tune and evaluate the performance of the MH sampler with ODE-integrated latent trajectories using a glucose-insulin dynamics model.
 # It includes data generation, sampler execution, and various analyses such as autocorrelation, effective sample size, and trace plots.
 
 using LinearAlgebra
@@ -8,13 +8,13 @@ using DifferentialEquations
 using Base.Threads
 using Plots
 using Printf
-using OdeMMHPlanner
+using OdeMHPlanner
 
 # Specify seed (for reproducible results).
 Random.seed!(1)
 
 ## Learning parameters
-K = Int(1e5) # number of MMH samples in final stage
+K = Int(1e5) # number of MH samples in final stage
 k_d = 0 # number of samples to be skipped to decrease correlation (thinning)
 K_b = 200 # length of burn-in period for each stage
 M_chunk = 5 # number of datapoints added at each stage
@@ -211,11 +211,11 @@ log_pdf_x_init(x_init) = -0.5 * sum((x_init - x_init_mean) .* (Diagonal(x_init_v
 x_init_0 = x_init_mean
 
 # Proposal distribution for z = (theta, x_init)
-# For the staged MMH sampler, the proposal distribution is adapted at each stage based on the samples obtained so far.
+# For the staged MH sampler, the proposal distribution is adapted at each stage based on the samples obtained so far.
 # Here, we only define the initial proposal distribution for the first stage.
 proposal_z_cov_0 = Diagonal(alpha * vcat(theta_var, x_init_var))
 
-# For a standard MMH sampler, the proposal distribution can be defined as follows:
+# For a standard MH sampler, the proposal distribution can be defined as follows:
 # proposal_z_cov = Diagonal(0.01 * vcat(theta_var, x_init_var))
 # propose_z(z) = rand(MvNormal(z, proposal_z_cov))
 # log_proposal_ratio_z(z_accepted, z_prop) = 0
@@ -287,13 +287,13 @@ xlabel!("\$t\$")
 ylabel!("\$x \\quad | \\quad y\$")
 display(p0)
 
-## MMH sampling
-# Run an MMH sampler with ODE-integrated latent trajectories.
-# MMH_samples, acceptance_ratio, runtime_sampling = ODE_MMH(u_t_bolus, t_train, y_train, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, propose_z, log_proposal_ratio_z; ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)
+## MH sampling
+# Run an MH sampler with ODE-integrated latent trajectories.
+# MH_samples, acceptance_ratio, runtime_sampling = ODE_MH(u_t_bolus, t_train, y_train, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, propose_z, log_proposal_ratio_z; ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)
 
-# Run a staged MMH sampler with ODE-integrated latent trajectories.
+# Run a staged MH sampler with ODE-integrated latent trajectories.
 # The acceptance ratio should be around 25 %. If it is too high, increase alpha; if it is too low, decrease alpha.
-MMH_samples, acceptance_ratio, runtime_sampling = staged_ODE_MMH(u_t_bolus, t_train, y_train, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, proposal_z_cov_0, M_chunk, K_stage, alpha; regularizer=regularizer, ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)
+MH_samples, acceptance_ratio, runtime_sampling = staged_ODE_MH(u_t_bolus, t_train, y_train, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, proposal_z_cov_0, M_chunk, K_stage, alpha; regularizer=regularizer, ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)
 
 ## Evaluate the obtained model on test data
 # Simulate the posterior models forward.
@@ -301,11 +301,11 @@ t_pred = t_test
 x_pred = Array{Float64}(undef, n_x, length(t_pred), K)
 for k in 1:K
     # Get current model.
-    x_t = MMH_samples[k].x_t
-    ode_rhs_pred(dx, x, p, t) = f_theta!(dx, MMH_samples[k].theta, x, u_t_bolus(t), t)
+    x_t = MH_samples[k].x_t
+    ode_rhs_pred(dx, x, p, t) = f_theta!(dx, MH_samples[k].theta, x, u_t_bolus(t), t)
 
     # Simulate system forward using a numerical ODE solver.
-    prob_pred = ODEProblem(ode_rhs_pred, x_t, t_span, MMH_samples[k].theta)
+    prob_pred = ODEProblem(ode_rhs_pred, x_t, t_span, MH_samples[k].theta)
     sol_pred = solve(prob_pred, ODE_solver; ODE_solver_opts..., saveat=t_pred)
     x_pred[:, :, k] .= Array(sol_pred)
 end
@@ -338,20 +338,20 @@ end
 # Plot the autocorrelation function (ACF) of the samples.
 # A well-mixed chain will show fast decay of autocorrelation. After thinning, the ACF should be near zero even at small lags.
 max_lag = 50 # maximum lag for ACF computation
-autocorrelation = compute_autocorrelation(MMH_samples; max_lag=max_lag)
-n_variables = length(MMH_samples[1].theta) + length(MMH_samples[1].x_init)
+autocorrelation = compute_autocorrelation(MH_samples; max_lag=max_lag)
+n_variables = length(MH_samples[1].theta) + length(MH_samples[1].x_init)
 
 p2 = plot(yticks=-1:0.1:1)
 for i in 1:n_variables
     if i == 1
         # Plot the ACF of the elements of theta.
         plot!(Array(0:max_lag), autocorrelation[:, i], lc=:red, lw=2, label="\$\\theta\$")
-    elseif 1 < i <= length(MMH_samples[1].theta)
+    elseif 1 < i <= length(MH_samples[1].theta)
         plot!(Array(0:max_lag), autocorrelation[:, i], lc=:red, lw=2, label="")
-    elseif i == length(MMH_samples[1].theta) + 1
+    elseif i == length(MH_samples[1].theta) + 1
         # Plot the ACF of the elements of x_init.
         plot!(Array(0:max_lag), autocorrelation[:, i], lc=:green, lw=2, label="\$x(-T_{train})\$")
-    elseif length(MMH_samples[1].theta) + 1 < i
+    elseif length(MH_samples[1].theta) + 1 < i
         plot!(Array(0:max_lag), autocorrelation[:, i], lc=:green, lw=2, label="")
     end
 end
@@ -364,24 +364,24 @@ display(p2)
 ## Compute effective sample size (ESS)
 # The ESS indicates how many effectively independent samples were drawn. Ideally, after thinning, ESS should approach K.
 # The goal of tuning is to maximize the ESS per second.
-ess = compute_ess(MMH_samples; max_lag=100)
+ess = compute_ess(MH_samples; max_lag=100)
 @printf("Minimum ESS: %.1f (= %.2f / s)\n", minimum(ess), minimum(ess) / runtime_sampling)
 
 ## Plot parameter trace
 # The trace should appear stationary and show no long-term trends after burn-in. Jump sizes should look reasonable.
 sample_matrix = Array{Float64}(undef, K, n_variables)
 for i in 1:K
-    sample_matrix[i, :] .= vcat(MMH_samples[i].theta, MMH_samples[i].x_init)
+    sample_matrix[i, :] .= vcat(MH_samples[i].theta, MH_samples[i].x_init)
 end
 
 for i in 1:n_variables
     p3 = plot(Array(0:K-1), sample_matrix[:, i], lw=2, legend=false)
-    if i <= length(MMH_samples[1].theta)
+    if i <= length(MH_samples[1].theta)
         title!("Trace of \$\\theta_{$i}\$")
         ylabel!("\$\\theta_{$i}\$")
     else
-        title!("Trace of \$x_{$(i-length(MMH_samples[1].theta))}(-T_{train})\$")
-        ylabel!("\$x_{$(i-length(MMH_samples[1].theta))}\$")
+        title!("Trace of \$x_{$(i-length(MH_samples[1].theta))}(-T_{train})\$")
+        ylabel!("\$x_{$(i-length(MH_samples[1].theta))}\$")
     end
     xlabel!("Iteration")
     display(p3)
@@ -414,30 +414,30 @@ for i in 1:n_variables
 
     plot!([true_values[i]], seriestype=:vline, label="True", lw=2)
 
-    if i <= length(MMH_samples[1].theta)
+    if i <= length(MH_samples[1].theta)
         title!("Sample PDF of \$\\theta_{$i}\$")
         xlabel!("\$\\theta_{$i}\$")
     else
-        title!("Sample PDF of \$x_{$(i-length(MMH_samples[1].theta))}(-T_{train})\$")
-        xlabel!("\$x_{$(i-length(MMH_samples[1].theta))}\$")
+        title!("Sample PDF of \$x_{$(i-length(MH_samples[1].theta))}(-T_{train})\$")
+        xlabel!("\$x_{$(i-length(MH_samples[1].theta))}\$")
     end
     ylabel!("Density")
     display(p4)
 end
 
 #=
-## Optional: run multiple independent MMH chains and compute the Gelman–Rubin statistic R̂.
+## Optional: run multiple independent MH chains and compute the Gelman–Rubin statistic R̂.
 # R̂ quantifies convergence by comparing within-chain to between-chain variance.
 # R̂ close to 1 (typically R̂ < 1.05) indicates good convergence across chains.
 N = 10 # number of independent chains
-MMH_chains = Vector{Vector{MMH_sample}}(undef, N)
+MH_chains = Vector{Vector{MH_sample}}(undef, N)
 @threads for n in 1:N
     theta_0 = rand(MvNormal(theta_mean, Diagonal(theta_var)))
     x_init_0 = rand(MvNormal(x_init_mean, Diagonal(x_init_var)))
-    MMH_chains[n] = staged_ODE_MMH(u_t_bolus, t_train, y_train, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, proposal_z_cov_0, M_chunk, K_stage, alpha; regularizer=regularizer, ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)[1]
+    MH_chains[n] = staged_ODE_MH(u_t_bolus, t_train, y_train, (-T_train, 0.0), K, K_b, k_d, f_theta!, g_theta!, log_pdf_w_theta, log_pdf_theta, theta_0, log_pdf_x_init, x_init_0, proposal_z_cov_0, M_chunk, K_stage, alpha; regularizer=regularizer, ODE_solver=ODE_solver, ODE_solver_opts=ODE_solver_opts, print_progress=true)[1]
 end
 
-R_hat = compute_gelman_rubin(MMH_chains)
+R_hat = compute_gelman_rubin(MH_chains)
 @printf("Maximum R̂: %.2f\n", maximum(R_hat))
 =#
 

@@ -1,7 +1,7 @@
 # Monte Carlo Simulation
 
 This directory contains the code for the Monte Carlo simulation study reported in the paper.  
-The study compares the proposed MMH-based approach against a nominal model-based approach and additional baseline methods across multiple randomized runs.
+The study compares the proposed MH-based approach against a nominal model-based approach and additional baseline methods across multiple randomized runs.
 
 ## Monte Carlo Study on HPC (Docker + Apptainer + Slurm)
 
@@ -14,7 +14,7 @@ From the **repository root**, build the Docker image:
 ```bash
 docker build \
   -f .devcontainer/Dockerfile \
-  -t mc_ode_mmh_container:latest \
+  -t mc_ode_mh_container:latest \
   .
 ```
 
@@ -29,13 +29,13 @@ If HSL is not available, remove the corresponding lines from the Dockerfile. The
 Create a tar archive of the image:
 
 ```bash
-docker save mc_ode_mmh_container:latest -o mc_ode_mmh_container.tar
+docker save mc_ode_mh_container:latest -o mc_ode_mh_container.tar
 ```
 
 Transfer it to the cluster:
 
 ```bash
-scp mc_ode_mmh_container.tar <cluster_user>@<cluster_address>:/path/to/project/root
+scp mc_ode_mh_container.tar <cluster_user>@<cluster_address>:/path/to/project/root
 ```
 
 Replace `/path/to/project/root` with the desired project directory on the cluster.
@@ -48,8 +48,8 @@ On the cluster, load Apptainer and build the `.sif` image:
 . /etc/profile.d/modules.sh
 module load apptainer
 
-apptainer build /path/to/project/root/mc_ode_mmh_container.sif \
-    docker-archive:///path/to/project/root/mc_ode_mmh_container.tar
+apptainer build /path/to/project/root/mc_ode_mh_container.sif \
+    docker-archive:///path/to/project/root/mc_ode_mh_container.tar
 ```
 
 Use the same project path as in the previous step.
@@ -100,7 +100,7 @@ apptainer exec \
     --cleanenv \
     --bind /your/local/path/to/repository/root:/home/developer/workspace \
     --bind /your/local/path/to/repository/root/.julia:/home/developer/.julia \
-    /your/local/path/to/repository/root/mc_ode_mmh_container.sif \
+    /your/local/path/to/repository/root/mc_ode_mh_container.sif \
     julia -e 'using Pkg;
               Pkg.activate();
               Pkg.develop(path=ENV["HSL_PATH"], shared=true);

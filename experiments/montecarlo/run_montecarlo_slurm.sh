@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=mc_ode_mmh_sim
+#SBATCH --job-name=mc_ode_mh_sim
 #SBATCH --output=experiments/montecarlo/logs/out_%A_%a.out
 #SBATCH --error=experiments/montecarlo/logs/err_%A_%a.err
 #SBATCH --array=1-100%50        # Run seeds 1..100, max 50 in parallel
@@ -29,7 +29,7 @@ apptainer exec \
     --cleanenv \
     --bind ${HOST_PROJECT_DIR}:${CONTAINER_PROJECT_DIR} \
     --bind ${HOST_PROJECT_DIR}/.julia:/home/developer/.julia \
-    ${HOST_PROJECT_DIR}/mc_ode_mmh_container.sif \
+    ${HOST_PROJECT_DIR}/mc_ode_mh_container.sif \
     julia --project=${CONTAINER_PROJECT_DIR} \
         ${CONTAINER_PROJECT_DIR}/experiments/montecarlo/run_montecarlo_single.jl \
         --seed ${SEED} \

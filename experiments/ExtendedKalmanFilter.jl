@@ -5,7 +5,7 @@ module ExtendedKalmanFilter
 using LinearAlgebra
 using ForwardDiff
 using Printf
-using OdeMMHPlanner
+using OdeMHPlanner
 
 mutable struct EKF
     x_hat::Vector{Float64} # current state estimate
@@ -34,7 +34,7 @@ This function computes the Jacobian of the discretized state transition function
 """
 function jacobian_f(kf::EKF, x_prev::AbstractVector, u_t, t_prev::Real, t_k::Real, dt::Real)
     # Define discretized state transition function
-    Phi(x) = OdeMMHPlanner.rk4_interval(kf.f, x, u_t, (t_prev, t_k), dt)
+    Phi(x) = OdeMHPlanner.rk4_interval(kf.f, x, u_t, (t_prev, t_k), dt)
 
     # Return Jacobian
     return ForwardDiff.jacobian(Phi, x_prev)
@@ -77,7 +77,7 @@ This function performs the EKF prediction step from t_prev to t_k.
 function ekf_predict!(kf::EKF, u_t, t_prev::Real, t_k::Real, dt::Real)
     # Nonlinear state propagation
     x_hat_prev = kf.x_hat
-    x_hat_pred = OdeMMHPlanner.rk4_interval(kf.f, x_hat_prev, u_t, (t_prev, t_k), dt)
+    x_hat_pred = OdeMHPlanner.rk4_interval(kf.f, x_hat_prev, u_t, (t_prev, t_k), dt)
 
     # Linearization A = df/dx
     F = jacobian_f(kf, x_hat_prev, u_t, t_prev, t_k, dt)

@@ -1,30 +1,56 @@
 """
-    compute_ess(MMH_samples::Vector{MMH_sample}; max_lag::Int=100)
+    compute_autocorrelation(MH_samples::Vector{MH_sample}; max_lag::Int=100)
+
+Compute the autocorrelation function (ACF) of the MH samples.
+
+# Arguments
+- `MH_samples`: MH samples
+- `max_lag`: maximum lag at which to calculate the ACF
+
+# Returns
+- `autocorrelation`: matrix containing the ACF for each variable
+"""
+function compute_autocorrelation(MH_samples::Vector{MH_sample}; max_lag::Int=100)
+    # Get number of models.
+    K = size(MH_samples, 1)
+
+    # Get number of parameters of the MH samples.
+    n_variables = length(MH_samples[1].theta) + length(MH_samples[1].x_init)
+
+    # Fill matrix with the series of the parameters of the MH samples.
+    sample_matrix = Array{Float64}(undef, K, n_variables)
+    for i in 1:K
+        sample_matrix[i, :] .= vcat(MH_samples[i].theta, MH_samples[i].x_init)
+    end
+
+    # Calculate the autocorrelation.
+    autocorrelation = autocor(sample_matrix, Array(0:max_lag); demean=true)
+
+    return autocorrelation
+end
+
+"""
+    compute_ess(MH_samples::Vector{MH_sample}; max_lag::Int=100)
 
 Compute the effective sample size (ESS) for each parameter and initial state.
 
 # Arguments
-- `MMH_samples`: MMH samples
+- `MH_samples`: MH samples
 - `max_lag`: maximum lag for autocorrelation estimation
 
 # Returns
 - `ess`: vector of ESS estimates for all variables
 """
-function compute_ess(MMH_samples::Vector{MMH_sample}; max_lag::Int=100)
+function compute_ess(MH_samples::Vector{MH_sample}; max_lag::Int=100)
     # Get number of models.
-    K = size(MMH_samples, 1)
+    K = size(MH_samples, 1)
 
-    # Get number of parameters of the MMH samples.
-    n_variables = length(MMH_samples[1].theta) + length(MMH_samples[1].x_init)
+    # Get number of parameters of the MH samples.
+    n_variables = length(MH_samples[1].theta) + length(MH_samples[1].x_init)
 
-    # Fill matrix with the series of the parameters of the MMH samples.
-    sample_matrix = Array{Float64}(undef, K, n_variables)
-    for i in 1:K
-        sample_matrix[i, :] .= vcat(MMH_samples[i].theta, MMH_samples[i].x_init)
-    end
+    # Compute autocorrelation.
+    autocorrelation = compute_autocorrelation(MH_samples; max_lag=max_lag)
 
-    # Calculate the autocorrelation.
-    autocorrelation = autocor(sample_matrix, Array(0:max_lag); demean=true)
     ess = zeros(n_variables)
 
     for i in 1:n_variables
@@ -45,26 +71,28 @@ function compute_ess(MMH_samples::Vector{MMH_sample}; max_lag::Int=100)
 end
 
 """
-    compute_gelman_rubin(MMH_chains::Vector{Vector{MMH_sample}})
+    compute_gelman_rubin(MH_chains::Vector{Vector{MH_sample}})
 
-Compute the Gelman–Rubin statistic for each parameter and initial state from a vector of MMH chains.
+Compute the Gelman–Rubin statistic R̂ for each parameter and initial state from a vector of PMCMC chains.
+The Gelman–Rubin statistic R̂ quantifies convergence by comparing within-chain to between-chain variance.
+R̂ close to 1 (typically R̂ < 1.05) indicates good convergence across chains.
 
 # Arguments
-- `MMH_chains`: vector of chains, where each chain is a vector of MMH samples
+- `MH_chains`: vector of chains, where each chain is a vector of MH samples
 
 # Returns
 - `R_hat`: vector of R̂ values, one for each variable
 """
-function compute_gelman_rubin(MMH_chains::Vector{Vector{MMH_sample}})
-    N = length(MMH_chains) # Number of chains
-    K = length(MMH_chains[1]) # Number of samples per chain
+function compute_gelman_rubin(MH_chains::Vector{Vector{MH_sample}})
+    N = length(MH_chains) # Number of chains
+    K = length(MH_chains[1]) # Number of samples per chain
 
-    # Get number of parameters of the MMH samples.
-    n_variables = length(MMH_chains[1][1].theta) + length(MMH_chains[1][1].x_init)
+    # Get number of parameters of the MH samples.
+    n_variables = length(MH_chains[1][1].theta) + length(MH_chains[1][1].x_init)
 
     # Extract samples from each chain
     sample_matrices_chains = Array{Float64}[]
-    for chain in MMH_chains
+    for chain in MH_chains
         sample_matrix = Array{Float64}(undef, K, n_variables)
         for i in 1:K
             sample_matrix[i, :] .= vcat(chain[i].theta, chain[i].x_init)
@@ -92,35 +120,4 @@ function compute_gelman_rubin(MMH_chains::Vector{Vector{MMH_sample}})
 
     # Clip from below at 1.0 for numerical consistency
     return max.(R_hat, 1.0)
-end
-
-"""
-    compute_autocorrelation(MMH_samples::Vector{MMH_sample}; max_lag::Int=100)
-
-Compute the autocorrelation function (ACF) of the MMH samples.
-
-# Arguments
-- `MMH_samples`: MMH samples
-- `max_lag`: maximum lag at which to calculate the ACF
-
-# Returns
-- `autocorrelation`: matrix containing the ACF for each variable
-"""
-function compute_autocorrelation(MMH_samples::Vector{MMH_sample}; max_lag::Int=100)
-    # Get number of models.
-    K = size(MMH_samples, 1)
-
-    # Get number of parameters of the MMH samples.
-    n_variables = length(MMH_samples[1].theta) + length(MMH_samples[1].x_init)
-
-    # Fill matrix with the series of the parameters of the MMH samples.
-    sample_matrix = Array{Float64}(undef, K, n_variables)
-    for i in 1:K
-        sample_matrix[i, :] .= vcat(MMH_samples[i].theta, MMH_samples[i].x_init)
-    end
-
-    # Calculate the autocorrelation.
-    autocorrelation = autocor(sample_matrix, Array(0:max_lag); demean=true)
-
-    return autocorrelation
 end

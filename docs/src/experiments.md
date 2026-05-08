@@ -8,7 +8,7 @@ All experiment scripts are located in the `experiments/` directory.
 
 **Script:** `experiments/sampler_tuning.jl`
 
-This experiment runs the MMH sampler for a large number of iterations without thinning and analyzes the resulting Markov chain to assess sampling performance. In particular, it computes diagnostics such as autocorrelation functions (ACFs), which are used to determine an appropriate thinning interval for subsequent experiments.
+This experiment runs the MH sampler for a large number of iterations without thinning and analyzes the resulting Markov chain to assess sampling performance. In particular, it computes diagnostics such as autocorrelation functions (ACFs), which are used to determine an appropriate thinning interval for subsequent experiments.
 
 The outputs produced by this script are used to generate **Figure 1** in the paper.
 
@@ -20,7 +20,7 @@ For a detailed explanation of the tuning and diagnostic procedure, see [Inferenc
 
 This experiment demonstrates the full pipeline on a single representative run:
 
-1. Bayesian inference of model parameters and latent state trajectories from infrequent measurements (MMH sampler with ODE integration),
+1. Bayesian inference of model parameters and latent state trajectories from infrequent measurements (MH sampler with ODE integration),
 2. scenario-based optimal control using posterior samples,
 3. evaluation by simulating the true system forward and comparing against baselines (e.g., nominal + EKF).
 

@@ -1,6 +1,6 @@
-name = "OdeMMHPlanner"
+name = "OdeMHPlanner"
 uuid = "aa6e6aa3-39df-4343-855d-9df50e730bdb"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Robert Lefringhausen <robert.lefringhausen@tum.de>"]
 
 [deps]

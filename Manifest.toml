@@ -1662,7 +1662,7 @@ git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
 uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
 version = "0.5.5"
 
-[[deps.OdeMMHPlanner]]
+[[deps.OdeMHPlanner]]
 deps = ["DifferentialEquations", "Distributions", "ForwardDiff", "Ipopt", "JLD2", "JuMP", "LinearAlgebra", "Plots", "Printf", "Random", "Statistics", "StatsBase", "StatsPlots"]
 path = "."
 uuid = "aa6e6aa3-39df-4343-855d-9df50e730bdb"

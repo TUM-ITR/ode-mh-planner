@@ -1,6 +1,6 @@
 # [Optimal Control](@id optimal-control)
 
-Once a posterior over the system dynamics and latent states has been obtained via the MMH sampler, it can be used to **compute control inputs that explicitly account for model uncertainty**.
+Once a posterior over the system dynamics and latent states has been obtained via the MH sampler, it can be used to **compute control inputs that explicitly account for model uncertainty**.
 
 This example demonstrates how to formulate and solve a **scenario-based optimal control problem (OCP)** using posterior samples learned from infrequent output measurements.
 
@@ -16,7 +16,7 @@ The objective is to compute a control input \(u(t)\) (e.g., insulin infusion) th
 - respects safety constraints (e.g., bounds on glucose levels),
 - remains robust with respect to uncertainty in the learned dynamics.
 
-Rather than optimizing with respect to a single nominal model, the control input is optimized **jointly across multiple scenarios**, where each scenario corresponds to one posterior sample obtained from the MMH sampler.
+Rather than optimizing with respect to a single nominal model, the control input is optimized **jointly across multiple scenarios**, where each scenario corresponds to one posterior sample obtained from the MH sampler.
 
 The result is a single control trajectory that performs well across a representative set of system realizations consistent with the available measurements and prior information.
 
@@ -46,7 +46,7 @@ These definitions are independent of the uncertainty representation and can be a
 
 ## Scenario-based optimal control
 
-Given a set of posterior samples obtained from the MMH sampler, the scenario OCP is solved by discretizing the dynamics and optimizing jointly across all scenarios.
+Given a set of posterior samples obtained from the MH sampler, the scenario OCP is solved by discretizing the dynamics and optimizing jointly across all scenarios.
 
 ```julia
 # Prediction horizon and discretization
@@ -54,8 +54,8 @@ H = 6 * 60.0       # 6 hours
 N = Int(H / 0.5)   # discretization points
 
 # Solve the scenario-based OCP
-U_opt, X_opt, t_grid, J_opt = solve_MMH_OCP(
-    MMH_samples,        # posterior samples (scenarios)
+U_opt, X_opt, t_grid, J_opt = solve_MH_OCP(
+    MH_samples,        # posterior samples (scenarios)
     n_u,                # number of control inputs
     f_theta, g_theta,   # dynamics and measurement models
     H, N,               # horizon and grid
@@ -65,7 +65,7 @@ U_opt, X_opt, t_grid, J_opt = solve_MMH_OCP(
 )
 ```
 
-Internally, `solve_MMH_OCP` propagates each scenario forward in time and enforces shared control inputs across all scenarios, yielding a control policy that explicitly accounts for uncertainty in the learned model.
+Internally, `solve_MH_OCP` propagates each scenario forward in time and enforces shared control inputs across all scenarios, yielding a control policy that explicitly accounts for uncertainty in the learned model.
 
 ## Evaluation and comparison
 
@@ -79,6 +79,6 @@ In `optimal_control.jl`, the proposed uncertainty-aware controller is compared a
 - **No control**, serving as a lower-performance baseline,
 - **Simple bolus control**, representing a heuristic therapy rule.
 
-The results typically show that the MMH-based controller behaves more conservatively, respecting safety constraints even for unfavorable parameter realizations, and achieves lower overall cost due to improved prediction under uncertainty.
+The results typically show that the MH-based controller behaves more conservatively, respecting safety constraints even for unfavorable parameter realizations, and achieves lower overall cost due to improved prediction under uncertainty.
 
 In contrast, nominal controllers may violate constraints as a result of overconfidence in a single model estimate.

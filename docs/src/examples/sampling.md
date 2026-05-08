@@ -1,6 +1,6 @@
 # [Inference and Sampler Tuning](@id sampling)
 
-This example demonstrates how to perform **Bayesian inference with the Marginal Metropolis–Hastings (MMH) sampler** with ODE-integrated latent trajectories, and how to tune the sampler for reliable posterior exploration. Proper tuning is essential for efficient mixing and for obtaining posterior samples that are suitable for downstream planning and control.
+This example demonstrates how to perform **Bayesian inference with the Metropolis–Hastings (MH) sampler** with ODE-integrated latent trajectories, and how to tune the sampler for reliable posterior exploration. Proper tuning is essential for efficient mixing and for obtaining posterior samples that are suitable for downstream planning and control.
 
 The complete, executable script corresponding to this section is available at `experiments/sampler_tuning.jl`.
 
@@ -26,7 +26,7 @@ The full model definition is available in the script.
 
 ## ODE Solver Configuration
 
-The MMH sampler embeds a numerical ODE solver to propagate candidate dynamics between measurement times. Any solver from `DifferentialEquations.jl` can be used.
+The MH sampler embeds a numerical ODE solver to propagate candidate dynamics between measurement times. Any solver from `DifferentialEquations.jl` can be used.
 
 -   **For control**: the fixed-step solver `RK4()` is recommended for consistency with the optimal control formulation.
 -   **For long trajectories or fine resolutions**: variable-step solvers with appropriate tolerances can significantly reduce runtime.
@@ -67,9 +67,9 @@ const theta_var = [
 
 A Gaussian prior is also assumed for the initial latent state, centered near a basal equilibrium with moderate variance.
 
-## Running the MMH Sampler
+## Running the MH Sampler
 
-We employ a **staged MMH strategy**, which incrementally increases the amount of data used during sampling. This helps the sampler locate high-probability regions of the posterior before long runs are used for uncertainty quantification.
+We employ a **staged MH strategy**, which incrementally increases the amount of data used during sampling. This helps the sampler locate high-probability regions of the posterior before long runs are used for uncertainty quantification.
 
 ### Key tuning parameters
 
@@ -83,7 +83,7 @@ We employ a **staged MMH strategy**, which incrementally increases the amount of
 -   `k_d`: thinning factor (used to reduce autocorrelation)
 
 ```julia
-MMH_samples, acceptance_ratio, runtime = staged_ODE_MMH(
+MH_samples, acceptance_ratio, runtime = staged_ODE_MH(
     # data, model, and prior definitions
 )
 ```
@@ -106,8 +106,8 @@ Trace plots should appear approximately stationary after burn-in, without long-t
 The autocorrelation function (ACF) reveals the dependence between consecutive samples, while the effective sample size (ESS) summarizes how many effectively independent samples are available.
 
 ```julia
-autocorrelation = compute_autocorrelation(MMH_samples; max_lag=50)
-ess = compute_ess(MMH_samples; max_lag=100)
+autocorrelation = compute_autocorrelation(MH_samples; max_lag=50)
+ess = compute_ess(MH_samples; max_lag=100)
 ```
 
 ![autocorrelation](../assets/autocorrelation.svg)
