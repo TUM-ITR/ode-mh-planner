@@ -16,7 +16,7 @@ We employ a version of the Bergman minimal model ([Bergman et al., 1981](https:/
 \end{aligned}
 ```
 
-where ``t`` denotes time (in minutes), the parameters ``p_1``, ``p_2``, and ``p_3`` characterize insulin action dynamics, ``n`` is the insulin clearance rate, and ``G_b`` and ``I_b`` denote basal levels. The input ``u(t)`` represents exogenous insulin infusion delivered by an insulin pump, while ``D(t)`` denotes glucose appearance resulting from meals. We consider a Type~1 diabetes scenario, where the glucose effectiveness parameter ``p_1`` is physiologically negligible and therefore omitted, resulting in ``\dot{G}(t) = -X(t) G(t) + D(t)`` ([Ali et al., 2011](https://doi.org/10.1002/oca.920)).
+where ``t`` denotes time (in minutes), the parameters ``p_1``, ``p_2``, and ``p_3`` characterize insulin action dynamics, ``n`` is the insulin clearance rate, and ``G_b`` and ``I_b`` denote basal levels. The input ``u(t)`` represents exogenous insulin infusion delivered by an insulin pump, while ``D(t)`` denotes glucose appearance resulting from meals. We consider a Type 1 diabetes scenario, where the glucose effectiveness parameter ``p_1`` is physiologically negligible and therefore omitted, resulting in ``\dot{G}(t) = -X(t) G(t) + D(t)`` ([Ali et al., 2011](https://doi.org/10.1002/oca.920)).
 
 ## Meal Disturbances
 

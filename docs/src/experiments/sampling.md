@@ -121,7 +121,7 @@ autocorrelation = compute_autocorrelation(MH_samples; max_lag=max_lag)
 
 ![Autocorrelation functions of the MH samples](../assets/autocorrelation.svg)
 
-The figure shows the normalized ACFs of the model parameters ``(p_2, p_3, n)`` (red) and the initial state components ``\boldsymbol{x}(-T)`` (green). The autocorrelation of all components decays substantially within a lag of 25. Based on this, we apply a thinning factor of ``k_d = 25`` in all subsequent experiments, so that the retained samples exhibit negligible empirical autocorrelation.
+The figure shows the normalized ACFs of the model parameters ``(p_2, p_3, n)`` (red) and the initial state components ``\boldsymbol{x}(-T_{\text{train}})`` (green). The autocorrelation of all components decays substantially within a lag of 25. Based on this, we apply a thinning factor of ``k_d = 25`` in all subsequent experiments, so that the retained samples exhibit negligible empirical autocorrelation.
 
 The effective sample size (ESS) provides a complementary summary of sampling efficiency:
 
