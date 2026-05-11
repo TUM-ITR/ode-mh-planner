@@ -189,7 +189,7 @@ log_pdf_w_theta(theta, w) = -0.5 * sum((w .^ 2) / (sigma_w^2)) # log pdf of meas
 #   n:  [0.12, 0.30]
 #
 # We use a log-normal prior for the parameters to ensure positivity.
-# We select the mean and variance such that approximately 95% of the values lie between the reported minimum and maximum values.
+# We select the mean and variance such that approximately 95% of the prior mass lies within the physiological ranges given above.
 const theta_mean = [
     -4.26,      # log(p2)
     -13.27,     # log(p3)

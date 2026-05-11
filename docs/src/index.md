@@ -1,6 +1,6 @@
 # OdeMHPlanner.jl
 
-Welcome to the documentation for **OdeMHPlanner.jl**. This package provides a framework for **uncertainty-aware learning and planning** in dynamical systems with unknown dynamics and infrequent output measurements.
+Welcome to the documentation for **OdeMHPlanner.jl**, a Julia package for uncertainty-aware learning and planning in dynamical systems with unknown parameters and infrequent output measurements.
 
 OdeMHPlanner implements the method described in:
 > **Learning Dynamics from Infrequent Output Measurements for Uncertainty-Aware Optimal Control**
@@ -10,19 +10,18 @@ OdeMHPlanner implements the method described in:
 
 ## Overview
 
-The package targets control problems in which the system dynamics are unknown and the state is only partially observed through infrequent and noisy output measurements.
-Rather than identifying a single nominal model, OdeMHPlanner explicitly represents uncertainty over both the system dynamics and the latent state trajectory.
+The package targets control problems in which the system dynamics are partially unknown and the state is only indirectly observed through infrequent and noisy output measurements. Rather than identifying a single nominal model, OdeMHPlanner explicitly represents uncertainty over both the model parameters and the latent state trajectory, and propagates this uncertainty into the control design.
 
 The approach follows a Bayesian workflow:
-1. **Learning:** A Metropolis–Hastings (MH) sampler, equipped with a numerical ODE solver, is used to sample from the posterior distribution over unknown dynamics and latent state trajectories, conditioned on infrequent input–output measurements.
-2. **Planning:** The resulting posterior samples are propagated through the system dynamics and used to formulate a scenario-based optimal control problem, yielding control inputs that explicitly account for model uncertainty.
 
-By propagating uncertainty from system identification into the control design, the framework enables principled uncertainty quantification and safer decision-making compared to point-estimate-based approaches.
+1. **Learning:** A Metropolis–Hastings (MH) sampler, equipped with a numerical ODE solver, draws samples from the posterior distribution over unknown parameters and latent state trajectories, conditioned on infrequent input–output measurements.
+2. **Planning:** The posterior samples are used to formulate a scenario-based optimal control problem (OCP), yielding control inputs that explicitly account for the inferred uncertainty.
+
+This enables principled uncertainty quantification and safer decision-making compared to point-estimate-based approaches.
 
 ## Installation
 
-This package is not registered in the General registry.
-Clone the repository and instantiate the environment locally:
+This package is not registered in the General registry. Clone the repository and instantiate the environment locally:
 
 ```bash
 git clone https://github.com/TUM-ITR/ode-mh-planner.git
@@ -32,12 +31,11 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
 ## Getting Started
 
-The following sections provide a structured entry point into the package:
+The [Experiments](@ref experiments) section provides a structured entry point into the package. The framework is demonstrated on a glucose regulation task for Type 1 diabetes patients, and the section is organized as follows:
 
-- **[Inference and Sampler Tuning](@ref sampling)**: Introduces the Bayesian learning problem underlying OdeMHPlanner. This section explains how unknown dynamics and latent state trajectories are inferred from infrequent input–output data using the Metropolis–Hastings sampler, and how to tune and diagnose the sampler to obtain reliable posterior samples.
-- **[Optimal Control](@ref optimal-control)**: Demonstrates how the inferred posterior models are used to formulate and solve a scenario-based optimal control problem that explicitly accounts for model uncertainty.
+- **[Experiments overview](@ref experiments):** Simulation setup, model description, prior distributions, cost functional, and baseline definitions.
+- **[Inference and Sampler Tuning](@ref sampling):** How to infer unknown dynamics and latent state trajectories from infrequent input–output data using the MH sampler, including tuning and diagnostics for reliable posterior exploration.
+- **[Optimal Control](@ref optimal-control):** How to formulate and solve a scenario-based OCP using the inferred posterior samples.
+- **[Monte Carlo Study](@ref monte-carlo):** Statistical evaluation of the method across 100 independent runs.
 
-## Reproducing the Experiments
-
-The numerical results reported in the paper are generated using the experiment scripts provided in the repository.  
-An overview of these experiments, including sampler diagnostics, single-run optimal control, and a Monte Carlo study, is given on the [Experiments](@ref experiments) page.
+Each subpage combines a scientific explanation with practical code examples and guidance.

@@ -7,11 +7,12 @@ makedocs(
     warnonly=[:missing_docs],
     pages=[
         "Home" => "index.md",
-        "Examples" => [
-            "Inference and Sampler Tuning" => "examples/sampling.md",
-            "Optimal Control" => "examples/control.md",
+        "Experiments" => [
+            "Overview" => "experiments/overview.md",
+            "Inference and Sampler Tuning" => "experiments/sampling.md",
+            "Optimal Control" => "experiments/control.md",
+            "Monte Carlo Study" => "experiments/monte_carlo.md",
         ],
-        "Experiments" => "experiments.md",
         "API" => "api.md",
     ],
 )

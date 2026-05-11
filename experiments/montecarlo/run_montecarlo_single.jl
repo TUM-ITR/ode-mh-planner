@@ -192,7 +192,7 @@ function run_simulation(seed::Int)
     #   n:  [0.12, 0.30]
     #
     # We use a log-normal prior for the parameters to ensure positivity.
-    # We select the mean and variance such that approximately 95% of the values lie between the reported minimum and maximum values.
+    # We select the mean and variance such that approximately 95% of the prior mass lies within the physiological ranges given above.
     const theta_mean = [
         -4.26,      # log(p2)
         -13.27,     # log(p3)

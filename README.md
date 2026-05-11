@@ -2,8 +2,8 @@
 <img width="800" height="100" src="assets/logo_with_text.png">
 </p>
 
-[![Dev](https://img.shields.io/badge/docs-stable-blue?logo=Julia&logoColor=white)](https://TUM-ITR.github.io/ode-mh-planner/dev/)
-[![DOI](https://zenodo.org/badge/1110854072.svg)](https://doi.org/10.5281/zenodo.18183541)
+[![Dev](https://img.shields.io/badge/docs-dev-blue?logo=Julia&logoColor=white)](https://TUM-ITR.github.io/ode-mh-planner/dev/)
+[![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.18183541-blue)](https://doi.org/10.5281/zenodo.18183541)
 
 **OdeMHPlanner** provides a framework for **uncertainty-aware learning and planning** in dynamical systems with unknown dynamics and infrequent output measurements. 
 
