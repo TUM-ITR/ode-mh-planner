@@ -2,7 +2,7 @@
 
 This page walks through the Bayesian inference step of the framework: running the MH sampler to obtain posterior samples over unknown parameters and latent state trajectories, and tuning the sampler for reliable posterior exploration. The complete script is available at `experiments/sampler_tuning.jl`.
 
-For the model definition, measurement setup, and prior distributions used in this example, see the [Experiments overview](@ref experiments).
+For the model definition, measurement setup, and prior distributions used in this example, see the [Experiments Overview](@ref experiments).
 
 ## Data Generation
 
@@ -77,7 +77,7 @@ const x_init_mean = [80.0, 0.0, 7.0]         # [G(-T), X(-T), I(-T)]
 const x_init_var  = [10.0^2, 0.001^2, 2.0^2]
 ```
 
-See the [Experiments overview](@ref experiments) for the rationale behind these choices.
+See the [Experiments Overview](@ref experiments) for the rationale behind these choices.
 
 ## Running the Staged MH Sampler
 

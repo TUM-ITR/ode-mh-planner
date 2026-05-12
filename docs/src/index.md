@@ -33,7 +33,7 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
 The [Experiments](@ref experiments) section provides a structured entry point into the package. The framework is demonstrated on a glucose regulation task for Type 1 diabetes patients, and the section is organized as follows:
 
-- **[Experiments overview](@ref experiments):** Simulation setup, model description, prior distributions, cost functional, and baseline definitions.
+- **[Experiments Overview](@ref experiments):** Simulation setup, model description, prior distributions, cost functional, and baseline definitions.
 - **[Inference and Sampler Tuning](@ref sampling):** How to infer unknown dynamics and latent state trajectories from infrequent input–output data using the MH sampler, including tuning and diagnostics for reliable posterior exploration.
 - **[Optimal Control](@ref optimal-control):** How to formulate and solve a scenario-based OCP using the inferred posterior samples.
 - **[Monte Carlo Study](@ref monte-carlo):** Statistical evaluation of the method across 100 independent runs.

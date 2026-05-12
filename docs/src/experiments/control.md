@@ -2,7 +2,7 @@
 
 This page demonstrates the full inference-to-control pipeline on a single representative run: Bayesian inference of model parameters and latent states from infrequent measurements, followed by scenario-based optimal control using the posterior samples. The complete script is available at `experiments/optimal_control.jl`.
 
-For the model definition, cost functional, constraints, and baseline description, see the [Experiments overview](@ref experiments).
+For the model definition, cost functional, constraints, and baseline description, see the [Experiments Overview](@ref experiments).
 
 ## Data Generation and Inference
 
