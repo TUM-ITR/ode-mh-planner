@@ -44,13 +44,13 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
 
     @printf("Aggregating metrics from %d runs\n", n)
 
-    # Collect costs.
+    # Costs
     J_true_MH = Float64[]
     J_true_nom = Float64[]
     J_true_no_control = Float64[]
     J_true_bolus = Float64[]
 
-    # Constraint satisfaction flags (per seed)
+    # Constraint satisfaction flags
     h_scenario_MH = Bool[]
     h_u_MH = Bool[]
     h_scenario_nom = Bool[]
@@ -60,17 +60,23 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
     h_scenario_bolus = Bool[]
     h_u_bolus = Bool[]
 
+    # Runtime metrics
+    runtime_sampling = Float64[]
+    runtime_optimization_MH = Float64[]
+
     # Track how many scenario/nominal solves were successful.
     n_MH_success = 0
     n_nom_success = 0
 
     for (seed, r) in zip(seeds, results)
         # Proposed method
+        push!(runtime_sampling, r.runtime_sampling)
         if r.solve_successful_MH
             n_MH_success += 1
             push!(J_true_MH, r.J_true_MH)
             push!(h_scenario_MH, r.h_scenario_satisfied_MH)
             push!(h_u_MH, r.h_u_satisfied_MH)
+            push!(runtime_optimization_MH, r.runtime_optimization_MH)
         else
             @warn "Scenario solve not successful for seed $seed. Skipping results for this seed."
         end
@@ -96,18 +102,26 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
         push!(h_u_bolus, r.h_u_satisfied_bolus)
     end
 
-    @printf("================ Monte Carlo Summary ================\n")
-    @printf("Number of runs loaded:                                     %3d\n", length(results))
-    @printf("Number of times the MH OCP is solved successfully:        %3d\n", n_MH_success)
-    @printf("Number of times the nominal OCP is solved successfully:    %3d\n", n_nom_success)
-    @printf("====================================================\n")
+    W = 56  # total width of the box
+
+    println("="^W)
+    @printf("  %-44s %5d\n", "Number of runs loaded", length(results))
+    @printf("  %-44s %5d\n", "MH OCP solved successfully", n_MH_success)
+    @printf("  %-44s %5d\n", "Nominal OCP solved successfully", n_nom_success)
+    println("="^W)
 
     mean_or_nan(v) = isempty(v) ? NaN : mean(v)
-    @printf("\n--- Cost (mean ± standard deviation) over successful runs ---\n")
-    @printf("MH-scenario:      %10.1f      ±%10.1f\n", mean_or_nan(J_true_MH), std(J_true_MH))
-    @printf("Nominal + EKF:     %10.1f      ±%10.1f\n", mean_or_nan(J_true_nom), std(J_true_nom))
-    @printf("No Control:        %10.1f      ±%10.1f\n", mean(J_true_no_control), std(J_true_no_control))
-    @printf("Bolus input:       %10.1f      ±%10.1f\n", mean(J_true_bolus), std(J_true_bolus))
+
+    @printf("\n--- Cost (mean ± std) over successful runs ---\n")
+    costs = [
+        ("MH-scenario", mean_or_nan(J_true_MH), std(J_true_MH)),
+        ("Nominal + EKF", mean_or_nan(J_true_nom), std(J_true_nom)),
+        ("No control", mean(J_true_no_control), std(J_true_no_control)),
+        ("Bolus input", mean(J_true_bolus), std(J_true_bolus)),
+    ]
+    for (label, m, s) in costs
+        @printf("  %-20s %10.1f  ± %10.1f\n", label, m, s)
+    end
 
     # Helper: violation count and ratio
     function count_violations(flags::Vector{Bool})
@@ -120,23 +134,30 @@ function aggregate_metrics(seeds::Vector{Int}, results::Vector{Any})
     end
 
     @printf("\n--- Constraint violations ---\n")
-    n_v, r = count_violations(h_scenario_MH)
-    @printf("MH-scenario (state constraints):           %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_MH), 100 * r)
-    n_v, r = count_violations(h_u_MH)
-    @printf("MH-scenario (input constraints):           %3d / %3d (%.1f %%)\n", n_v, length(h_u_MH), 100 * r)
-    n_v, r = count_violations(h_scenario_nom)
-    @printf("Nominal + EKF (state constraints): %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_nom), 100 * r)
-    n_v, r = count_violations(h_u_nom)
-    @printf("Nominal + EKF (input constraints): %3d / %3d (%.1f %%)\n", n_v, length(h_u_nom), 100 * r)
-    n_v, r = count_violations(h_scenario_no_control)
-    @printf("No control (state constraints):        %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_no_control), 100 * r)
-    n_v, r = count_violations(h_u_no_control)
-    @printf("No control (input constraints):        %3d / %3d (%.1f %%)\n", n_v, length(h_u_no_control), 100 * r)
-    n_v, r = count_violations(h_scenario_bolus)
-    @printf("Bolus input (state constraints):       %3d / %3d (%.1f %%)\n", n_v, length(h_scenario_bolus), 100 * r)
-    n_v, r = count_violations(h_u_bolus)
-    @printf("Bolus input (input constraints):       %3d / %3d (%.1f %%)\n", n_v, length(h_u_bolus), 100 * r)
-    println("====================================================\n")
+    violations = [
+        ("MH-scenario (state)", h_scenario_MH),
+        ("MH-scenario (input)", h_u_MH),
+        ("Nominal + EKF (state)", h_scenario_nom),
+        ("Nominal + EKF (input)", h_u_nom),
+        ("No control (state)", h_scenario_no_control),
+        ("No control (input)", h_u_no_control),
+        ("Bolus input (state)", h_scenario_bolus),
+        ("Bolus input (input)", h_u_bolus),
+    ]
+    for (label, h) in violations
+        n_v, r = count_violations(h)
+        @printf("  %-28s %3d / %3d  (%5.1f %%)\n", label, n_v, length(h), 100 * r)
+    end
+
+    @printf("\n--- Runtime (mean ± std) ---\n")
+    runtimes = [
+        ("Sampling", runtime_sampling),
+        ("MH optimization", runtime_optimization_MH),
+    ]
+    for (label, rt) in runtimes
+        @printf("  %-20s %10.1f  ± %10.1f  seconds\n", label, mean(rt), std(rt))
+    end
+    println("="^W)
 end
 
 # This function plots predictions and true trajectories for a single run.
