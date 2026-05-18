@@ -8,7 +8,7 @@ The experiment scripts are located in `experiments/montecarlo/`. Detailed instru
 
 Each of the 100 runs proceeds as follows:
 
-1. A true patient is sampled by drawing the physiological parameters ``(p_2, p_3, n)`` and the initial state from the prior distributions (see [Experiments](@ref experiments)).
+1. A true patient is sampled by drawing the physiological parameters ``(p_2, p_3, n)`` and the initial state from the prior distributions (see [Overview](@ref experiments)).
 2. The ground-truth trajectory is simulated over the training window (6 am–6 pm), and ``M = 200`` noisy glucose measurements are generated at random times.
 3. The staged MH sampler produces ``K = 100`` posterior samples with thinning factor ``k_d = 25``.
 4. The scenario-based OCP is solved using the posterior samples, and the resulting control input is applied to the true system over the 6-hour control horizon (6 pm–12 am).
@@ -39,4 +39,4 @@ The table below reports the computation times (mean ± standard deviation) for t
 | Optimal control (scenario OCP) | 753 ± 144 s |
 | Total | 1024 ± 149 s |
 
-The total computation time of approximately 17 minutes per run is not yet sufficient for real-time application, even for slowly varying dynamics such as glucose–insulin regulation. However, the current implementation is not optimized for runtime, and the results demonstrate that the method produces reliable and safe control inputs across a wide range of patient models. Reducing computation times to a practically viable level — through solver warm-starting, parallelization, or more efficient sampling strategies — is an important direction for future work.
+The total computation time of approximately 17 minutes per run — covering both inference and planning over a 6-hour control horizon — is not yet sufficient for real-time application, even for slowly varying dynamics such as glucose–insulin regulation. However, the current implementation is not optimized for runtime, and the results demonstrate that the method produces reliable and safe control inputs across a wide range of patient models. Reducing computation times to a practically viable level — through solver warm-starting, parallelization, or more efficient sampling strategies — is an important direction for future work.

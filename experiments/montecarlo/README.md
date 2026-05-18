@@ -54,42 +54,34 @@ apptainer build /path/to/project/root/mc_ode_mh_container.sif \
 
 Use the same project path as in the previous step.
 
-### 4. Configure paths in the Slurm script (important)
+### 4. Configure the host project path in the Slurm script (important)
 
-The Slurm script uses bind mounts to map host directories into the Apptainer container:
-
-- Host project directory → `/home/developer/workspace`
-- Host .julia depot → `/home/developer/.julia`
-
+The Slurm script uses bind mounts to map host directories into the Apptainer container.
 Since the container filesystem is read-only, Julia must use a writable depot directory on the host.
-Each user must therefore adapt the bind paths manually.
 
-Open `experiments/montecarlo/run_montecarlo_slurm.sh` and replace the example bindings
-
-```
---bind /sq/home/ge82sem/ifac2026:/home/developer/workspace \
---bind /sq/home/ge82sem/ifac2026/.julia:/home/developer/.julia \
-```
-
-with paths appropriate for your system, for example:
+Open `experiments/montecarlo/run_montecarlo_slurm.sh` and replace the default value of `HOST_PROJECT_DIR`
 
 ```
---bind /your/local/path/to/repository/root:${PROJECT_DIR} \
---bind /your/local/path/to/repository/root/.julia:/home/developer/.julia \
+HOST_PROJECT_DIR="/sq/home/ge82sem/ifac2026"
 ```
+
+with the absolute path to your local copy of the repository, for example:
+
+```
+HOST_PROJECT_DIR="/your/local/path/to/repository/root"
+```
+
+All bind mounts and output paths are derived from this variable automatically.
 
 Create the required host directories (only needed once):
 
 ```bash
 mkdir -p /your/local/path/to/repository/root/.julia
 mkdir -p /your/local/path/to/repository/root/experiments/montecarlo/logs
-mkdir -p /your/local/path/to/repository/root/experiments/montecarlo/results
 ```
 
-These directories store:
-- Julia precompile files and package caches,
-- Slurm log output,
-- Monte Carlo simulation results.
+These directories store Julia precompile files and package caches, and Slurm log output.
+Results directories are created automatically by the script for each job.
 
 ### 5. Instantiate the Julia environment
 

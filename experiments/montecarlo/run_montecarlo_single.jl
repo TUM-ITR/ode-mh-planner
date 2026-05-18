@@ -6,6 +6,7 @@ using Random
 using Distributions
 using DifferentialEquations
 using Printf
+using JLD2
 using OdeMHPlanner
 
 include(joinpath(@__DIR__, "..", "ExtendedKalmanFilter.jl"))
@@ -165,7 +166,7 @@ function run_simulation(seed::Int)
     ## Measurement model
     # Measurement function
     # In this example, we assume that the measurement function is known and that the glucose level is measured directly with some additive noise.
-    const C = [1.0 0.0 0.0]
+    C = [1.0 0.0 0.0]
 
     function g_theta!(g, theta, x, u, t)
         g .= C * x
@@ -179,7 +180,7 @@ function run_simulation(seed::Int)
     # Measurement noise model
     # We assume zero-mean Gaussian measurement noise with known standard deviation sigma_w.
     # Normalizing factors are omitted as they cancel out in the acceptance ratio.
-    const sigma_w = 8.0 # standard deviation of zero-mean Gaussian measurement noise
+    sigma_w = 8.0 # standard deviation of zero-mean Gaussian measurement noise
     sample_w_theta(theta, N) = rand(Normal(0, sigma_w), N) # sample measurement noise
     log_pdf_w_theta(theta, w) = -0.5 * sum((w .^ 2) / (sigma_w^2)) # log pdf of measurement noise, scaling omitted
 
@@ -193,13 +194,13 @@ function run_simulation(seed::Int)
     #
     # We use a log-normal prior for the parameters to ensure positivity.
     # We select the mean and variance such that approximately 95% of the prior mass lies within the physiological ranges given above.
-    const theta_mean = [
+    theta_mean = [
         -4.26,      # log(p2)
         -13.27,     # log(p3)
         -1.66       # log(n)
     ]
 
-    const theta_var = [
+    theta_var = [
         0.18^2,
         0.28^2,
         0.23^2
@@ -207,7 +208,7 @@ function run_simulation(seed::Int)
 
     # Log pdf of prior
     # Normalizing factors are omitted as they cancel out in the acceptance ratio.
-    const theta_cov = Diagonal(theta_var) # covariance matrix of prior
+    theta_cov = Diagonal(theta_var) # covariance matrix of prior
     log_pdf_theta(theta) = -0.5 * sum((theta - theta_mean) .* (theta_cov \ (theta - theta_mean)))
 
     # Initial guess for model parameters
@@ -216,8 +217,8 @@ function run_simulation(seed::Int)
     ## Prior for the initial state
     # We assume that the initial state follows a Gaussian distribution.
     # We assume the patient has been fasting before the first meal and initialize the state near the basal equilibrium with some variance.
-    const x_init_mean = [80.0, 0.0, 7.0] # mean
-    const x_init_var = [8.0^2, 0.001^2, 2.0^2] # variance
+    x_init_mean = [80.0, 0.0, 7.0] # mean
+    x_init_var = [8.0^2, 0.001^2, 2.0^2] # variance
     sample_x_init() = rand(MvNormal(x_init_mean, Diagonal(x_init_var)))
     log_pdf_x_init(x_init) = -0.5 * sum((x_init - x_init_mean) .* (Diagonal(x_init_var) \ (x_init - x_init_mean)))
 
@@ -259,12 +260,12 @@ function run_simulation(seed::Int)
     #
     # Importantly, the true patient parameters are not available to the MH sampler or to the optimal
     # control problem; they are only used here to produce realistic training data.
-    const p2_nom = 0.015
-    const p3_nom = 2e-6
-    const n_nom = 0.21
+    p2_nom = 0.015
+    p3_nom = 2e-6
+    n_nom = 0.21
 
-    const k_ins_nom = 0.22
-    const S_nom = p3_nom / (p2_nom * n_nom)
+    k_ins_nom = 0.22
+    S_nom = p3_nom / (p2_nom * n_nom)
 
     function k_ins_from_theta(theta)
         p2, p3, n = exp.(theta)
@@ -273,7 +274,7 @@ function run_simulation(seed::Int)
         return k
     end
 
-    const T_bolus = 60.0 # bolus duration [min]
+    T_bolus = 60.0 # bolus duration [min]
     k_ins = k_ins_from_theta(theta_true) # scaling factor [mU/L/min per mg/dl]
 
     function u_t_bolus(t)
@@ -311,19 +312,19 @@ function run_simulation(seed::Int)
     ## Formulate and solve optimal control problem
     # Formulate the optimal control problem (OCP) using the MH samples.
     # Define the cost function.
-    const G_REF = 80.0  # reference glucose level in mg/dL
-    const U_BASAL = 0.0 # basal level in mU/L/min
-    const W_G = 1.0     # weight on glucose deviation
-    const W_Gf = 10.0   # weight on glucose deviation at terminal time
-    const W_U = 1e-3    # weight on insulin usage
+    G_REF = 80.0  # reference glucose level in mg/dL
+    U_BASAL = 0.0 # basal level in mU/L/min
+    W_G = 1.0     # weight on glucose deviation
+    W_Gf = 10.0   # weight on glucose deviation at terminal time
+    W_U = 1e-3    # weight on insulin usage
     c(u, x, t) = W_G * (x[1] - G_REF)^2 + W_U * (u[1] - U_BASAL)^2 # running cost
     c_f(x) = W_Gf * (x[1] - G_REF)^2 # terminal cost
 
     # Define the constraints.
-    const G_MIN = 70.0 # minimum glucose level in mg/dL
-    const G_MAX = 180.0 # maximum glucose level in mg/dL
-    const U_MIN = 0.0 # minimum insulin infusion in mU/L/min
-    const U_MAX = 20.0 # maximum insulin infusion in mU/L/min
+    G_MIN = 70.0 # minimum glucose level in mg/dL
+    G_MAX = 180.0 # maximum glucose level in mg/dL
+    U_MIN = 0.0 # minimum insulin infusion in mU/L/min
+    U_MAX = 20.0 # maximum insulin infusion in mU/L/min
 
     h_scenario(u, x, t) = cat(
         x[1] .- G_MAX,
@@ -585,17 +586,17 @@ function run_simulation(seed::Int)
         J_true_nom=J_true_nom,
         h_scenario_satisfied_nom=h_scenario_satisfied_nom,
         h_u_satisfied_nom=h_u_satisfied_nom,
-        U_prior=U_prior,
-        X_prior=X_prior,
-        t_grid_prior=t_grid_prior,
-        J_prior=J_prior,
-        solve_successful_prior=solve_successful_prior,
-        iterations_prior=iterations_prior,
-        runtime_optimization_prior=runtime_optimization_prior,
-        J_true_prior=J_true_prior,
-        h_scenario_satisfied_prior=h_scenario_satisfied_prior,
-        h_u_satisfied_prior=h_u_satisfied_prior,
-        x_true_prior=x_true_prior,
+        # U_prior=U_prior,
+        # X_prior=X_prior,
+        # t_grid_prior=t_grid_prior,
+        # J_prior=J_prior,
+        # solve_successful_prior=solve_successful_prior,
+        # iterations_prior=iterations_prior,
+        # runtime_optimization_prior=runtime_optimization_prior,
+        # J_true_prior=J_true_prior,
+        # h_scenario_satisfied_prior=h_scenario_satisfied_prior,
+        # h_u_satisfied_prior=h_u_satisfied_prior,
+        # x_true_prior=x_true_prior,
         x_true_no_control=x_true_no_control,
         J_true_no_control=J_true_no_control,
         h_scenario_satisfied_no_control=h_scenario_satisfied_no_control,

@@ -1,6 +1,7 @@
 .vscode/
-.devcontainer/*.tar.gz
-*.sif
+**/*.tar.gz
+**/*.tar
+**/*.sif
 .julia/
 experiments/montecarlo/results/
 experiments/montecarlo/logs/
