@@ -71,9 +71,9 @@ To ensure positivity and reflect prior uncertainty around physiologically plausi
 
 ## Inference Setup
 
-The MH sampler (Algorithm 1 in the paper) uses a fourth-order Runge–Kutta integrator (RK4) with a step size of 0.5 min for propagating the ODE dynamics within each likelihood evaluation. To improve mixing, we employ an adaptive proposal strategy (Remark 1 in the paper): the sampler starts with 5 measurements and increases the number of data points by 5 per stage. At each stage, the proposal covariance is adapted based on the empirical covariance of the chain, allowing it to track the evolving posterior geometry.
+The MH sampler (Algorithm 1 in the paper; note that the published pseudocode contains an error, see the [erratum](https://github.com/TUM-ITR/ode-mh-planner#erratum) for the corrected version) uses a fourth-order Runge–Kutta integrator (RK4) with a step size of 0.5 min for propagating the ODE dynamics within each likelihood evaluation. To improve mixing, we employ an adaptive proposal strategy (Remark 1 in the paper): the sampler starts with 5 measurements and increases the number of data points by 5 per stage. At each stage, the proposal covariance is adapted based on the empirical covariance of the chain, allowing it to track the evolving posterior geometry.
 
-The thinning interval is determined empirically by running the sampler for ``10^5`` iterations on a representative instance and inspecting the autocorrelation functions (ACFs) of the model parameters and initial state; see [Inference and Sampler Tuning](@ref sampling) for details. Based on this analysis, a thinning factor of ``k_d = 25`` is applied in all subsequent experiments.
+The thinning interval is determined empirically by running the sampler for ``10^5`` iterations on a representative instance and inspecting the autocorrelation functions (ACFs) of the model parameters and initial state; see [Inference and Sampler Tuning](@ref sampling) for details. Based on this analysis, a thinning factor of ``k_d = 75`` is applied in all subsequent experiments.
 
 Using this thinning factor, the sampler is then run to produce ``K = 100`` posterior samples for use in the scenario-based optimal control problem.
 

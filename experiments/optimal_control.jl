@@ -26,10 +26,10 @@ Random.seed!(40)
 
 ## Learning parameters
 K = 100 # number of MH samples in final stage
-k_d = 20 # number of samples to be skipped to decrease correlation (thinning)
-K_b = 200 # length of burn-in period for each stage
+k_d = 75 # number of samples to be skipped to decrease correlation (thinning)
+K_b = 800 # length of burn-in period for each stage
 M_chunk = 5 # number of datapoints added at each stage
-K_stage = 500 # number of samples per stage
+K_stage = 2000 # number of samples per stage
 alpha = 0.85 # scaling of the proposal covariance
 regularizer = 0.0 # regularizer for proposal covariance
 rk4_step_size = 0.5 # step size for RK4 solver
@@ -290,7 +290,7 @@ prob = ODEProblem(ode_rhs, x_init_true, t_span, theta_true)
 sol = solve(prob, Tsit5(); saveat=t_save)
 x = Array(sol)
 x_0_true = x[:, end-1] # state at time t=0
-x = x[:, 1:end-1]
+x = x[:, 1:(end-1)]
 
 # Generate measurements.
 y = zeros(n_y, M)
@@ -389,7 +389,7 @@ sol_MH = solve(prob_MH, Tsit5(); saveat=t_pred)
 x_true_MH = Array(sol_MH)
 
 # Compute the true cost of the optimized trajectory.
-J_running = sum(c(u_t_MH(t_pred[i]), x_true_MH[:, i], t_pred[i]) * pred_step_size for i in 1:length(t_pred)-1)
+J_running = sum(c(u_t_MH(t_pred[i]), x_true_MH[:, i], t_pred[i]) * pred_step_size for i in 1:(length(t_pred)-1))
 J_terminal = c_f(x_true_MH[:, end])
 J_true_MH = J_running + J_terminal
 
@@ -477,7 +477,7 @@ sol_nom = solve(prob_nom, Tsit5(); saveat=t_pred)
 x_true_nom = Array(sol_nom)
 
 # Compute the true cost of trajectory with nominal model based input.
-J_running = sum(c(u_t_nom(t_pred[i]), x_true_nom[:, i], t_pred[i]) * pred_step_size for i in 1:length(t_pred)-1)
+J_running = sum(c(u_t_nom(t_pred[i]), x_true_nom[:, i], t_pred[i]) * pred_step_size for i in 1:(length(t_pred)-1))
 J_terminal = c_f(x_true_nom[:, end])
 J_true_nom = J_running + J_terminal
 
@@ -552,7 +552,7 @@ sol_no_control = solve(prob_no_control, Tsit5(); saveat=t_pred)
 x_true_no_control = Array(sol_no_control)
 
 # Compute the true cost of trajectory without control.
-J_running = sum(c(u_t_no_control(t_pred[i]), x_true_no_control[:, i], t_pred[i]) * pred_step_size for i in 1:length(t_pred)-1)
+J_running = sum(c(u_t_no_control(t_pred[i]), x_true_no_control[:, i], t_pred[i]) * pred_step_size for i in 1:(length(t_pred)-1))
 J_terminal = c_f(x_true_no_control[:, end])
 J_true_no_control = J_running + J_terminal
 
@@ -569,7 +569,7 @@ sol_bolus = solve(prob_bolus, Tsit5(); saveat=t_pred)
 x_true_bolus = Array(sol_bolus)
 
 # Compute the true cost of the trajectory with bolus input.
-J_running = sum(c(u_t_bolus(t_pred[i]), x_true_bolus[:, i], t_pred[i]) * pred_step_size for i in 1:length(t_pred)-1)
+J_running = sum(c(u_t_bolus(t_pred[i]), x_true_bolus[:, i], t_pred[i]) * pred_step_size for i in 1:(length(t_pred)-1))
 J_terminal = c_f(x_true_bolus[:, end])
 J_true_bolus = J_running + J_terminal
 

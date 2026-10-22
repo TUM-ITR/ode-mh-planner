@@ -16,9 +16,9 @@ Random.seed!(1)
 ## Learning parameters
 K = Int(1e5) # number of MH samples in final stage
 k_d = 0 # number of samples to be skipped to decrease correlation (thinning)
-K_b = 200 # length of burn-in period for each stage
+K_b = 800 # length of burn-in period for each stage
 M_chunk = 5 # number of datapoints added at each stage
-K_stage = 500 # number of samples per stage
+K_stage = 2000 # number of samples per stage
 alpha = 0.85 # scaling of the proposal covariance - should lead to an acceptance rate of about 25 %
 regularizer = 0.0 # regularizer for proposal covariance
 rk4_step_size = 0.5 # step size for RK4 solver
@@ -276,8 +276,8 @@ end
 x_train = x[:, 1:M_train]
 y_train = y[:, 1:M_train]
 
-x_test = x[:, M_train+1:end]
-y_test = y[:, M_train+1:end]
+x_test = x[:, (M_train+1):end]
+y_test = y[:, (M_train+1):end]
 
 # Plot data.
 p0 = plot()
@@ -337,7 +337,7 @@ end
 ## Autocorrelation analysis
 # Plot the autocorrelation function (ACF) of the samples.
 # A well-mixed chain will show fast decay of autocorrelation. After thinning, the ACF should be near zero even at small lags.
-max_lag = 50 # maximum lag for ACF computation
+max_lag = 100 # maximum lag for ACF computation
 autocorrelation = compute_autocorrelation(MH_samples; max_lag=max_lag)
 n_variables = length(MH_samples[1].theta) + length(MH_samples[1].x_init)
 
@@ -375,7 +375,7 @@ for i in 1:K
 end
 
 for i in 1:n_variables
-    p3 = plot(Array(0:K-1), sample_matrix[:, i], lw=2, legend=false)
+    p3 = plot(Array(0:(K-1)), sample_matrix[:, i], lw=2, legend=false)
     if i <= length(MH_samples[1].theta)
         title!("Trace of \$\\theta_{$i}\$")
         ylabel!("\$\\theta_{$i}\$")
@@ -444,7 +444,7 @@ R_hat = compute_gelman_rubin(MH_chains)
 #=
 ## Save data to text file for external plotting.
 include("data2txt.jl")
-lag = collect(0:50)
+lag = collect(0:max_lag)
 data2txt("autocorrelation.txt", 
     "lag", lag, 
     "theta1", autocorrelation[:, 1], 

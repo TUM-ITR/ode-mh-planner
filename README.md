@@ -43,6 +43,40 @@ The results reported in the paper were obtained using proprietary **HSL linear s
 
 If HSL solvers are not available, the code automatically falls back to standard open-source solvers (e.g. MUMPS). While functional, this configuration may be slower and has not been exhaustively tested.
 
+## Erratum
+
+After the paper had been accepted and published, we found a bookkeeping error in the pseudocode of the Metropolis–Hastings sampler (Algorithm 1 in the paper). The error was also present in the code up to v0.2.1: the chain index was only advanced on acceptance, so rejected proposals were not recorded as repeated states. As a result, the stored samples are not guaranteed to follow the posterior, as states with a high acceptance probability are over-represented; in our experiments this bias turned out to be small. The description of the sampler in the text of the paper is correct. The corrected pseudocode is given below: every iteration produces a sample (line 7), and burn-in and thinning refer to MH iterations.
+
+```text
+Algorithm 1 (corrected): Metropolis–Hastings sampler
+
+Require: observations D, model f_θ(·), g_θ(·), p_W(· | θ),
+         priors p(θ), p(x(-T)), proposal density q(z' | z),
+         initial value z[1], number of samples K,
+         burn-in K_b, thinning parameter k_d
+Ensure:  K samples from p(θ, x(0) | D)
+
+ 1: set N ← K_b + 1 + (K - 1)(k_d + 1)
+ 2: compute likelihood p(y_{1:M} | z[1])
+ 3: for k = 1, ..., N - 1 do
+ 4:     propose z' ~ q(z' | z[k])
+ 5:     simulate latent trajectory under z' and evaluate p(y_{1:M} | z')
+ 6:     compute acceptance probability α
+ 7:     set z[k+1] ← z' with probability α,
+        otherwise z[k+1] ← z[k]
+ 8: end for
+ 9: discard burn-in and perform thinning
+10: compute x[k](0) = Φ(0; z[k], u(·)) for each sample
+```
+
+The fix is included from v0.3.0. Since burn-in and thinning now refer to MH iterations
+rather than accepted proposals, the sampler settings were adjusted accordingly (burn-in
+`K_b = 800`, samples per stage `K_stage = 2000`, thinning `k_d = 75`), and all experiments
+were rerun with the corrected sampler. Updated results are available in the
+[documentation](https://tum-itr.github.io/ode-mh-planner/dev/); the qualitative conclusions
+of the paper are unchanged. The code used for the published results is available under tag
+[v0.2.1](https://github.com/TUM-ITR/ode-mh-planner/tree/v0.2.1).
+
 ## Citation
 
 If you use this code in your research, please cite our paper:

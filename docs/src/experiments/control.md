@@ -15,14 +15,14 @@ x_init_true = rand(MvNormal(x_init_mean, Diagonal(x_init_var)))
 
 The ground-truth trajectory is simulated over the training window (6 am–6 pm), and ``M = 200`` noisy glucose measurements are generated at random times. During the training window, a simple bolus insulin input proportional to the meal size is applied. The proportionality constant is computed from the true parameters to produce physiologically plausible training data — importantly, these true parameters are not available to the sampler or the controller.
 
-The staged MH sampler is then run to produce ``K = 100`` posterior samples with a thinning factor of ``k_d = 20``:
+The staged MH sampler is then run to produce ``K = 100`` posterior samples with a thinning factor of ``k_d = 75``:
 
 ```julia
 K       = 100
-k_d     = 20
-K_b     = 200
+k_d     = 75
+K_b     = 800
 M_chunk = 5
-K_stage = 500
+K_stage = 2000
 alpha   = 0.85
 
 MH_samples, acceptance_ratio, runtime_sampling = staged_ODE_MH(

@@ -35,10 +35,10 @@ function run_simulation(seed::Int)
 
     ## Learning parameters
     K = 100 # number of MH samples in final stage
-    k_d = 20 # number of samples to be skipped to decrease correlation (thinning)
-    K_b = 200 # length of burn-in period for each stage
+    k_d = 75 # number of samples to be skipped to decrease correlation (thinning)
+    K_b = 800 # length of burn-in period for each stage
     M_chunk = 5 # number of datapoints added at each stage
-    K_stage = 500 # number of samples per stage
+    K_stage = 2000 # number of samples per stage
     alpha = 0.85 # scaling of the proposal covariance
     regularizer = 0.0 # regularizer for proposal covariance
     rk4_step_size = 0.5 # step size for RK4 solver

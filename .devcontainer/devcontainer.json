@@ -18,14 +18,12 @@
 	"remoteUser": "developer",
 	"workspaceFolder": "/home/developer/workspace/",
 	"mounts": [
-		"source=${localWorkspaceFolder},target=/home/developer/workspace/,type=bind",
-		"source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+		"source=${localWorkspaceFolder},target=/home/developer/workspace/,type=bind"
 	],
 	"containerEnv": {
 		"JULIA_NUM_THREADS": "10"
 	},
 	"remoteEnv": {
-		"SSH_AUTH_SOCK": "/ssh-agent",
 		"JULIA_DEPOT_PATH": "/home/developer/.julia"
 	},
 	"postCreateCommand": "julia -e 'using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile()'"

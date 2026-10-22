@@ -86,13 +86,13 @@ The sampler uses a staged strategy to build up an effective proposal distributio
 ```julia
 K       = Int(1e5)  # number of MH samples in final stage
 k_d     = 0         # thinning factor (0 = no thinning, for diagnostic purposes)
-K_b     = 200       # burn-in length per stage
+K_b     = 800       # burn-in length per stage
 M_chunk = 5         # measurements added per stage
-K_stage = 500       # samples drawn per stage
+K_stage = 2000      # samples drawn per stage
 alpha   = 0.85      # proposal covariance scaling
 ```
 
-At each stage, the sampler incorporates ``M_{\text{chunk}} = 5`` additional measurements into the likelihood and draws ``K_{\text{stage}} = 500`` samples after a burn-in of ``K_b = 200``. The proposal covariance is initialized from the prior and then updated at each stage using the empirical covariance of the chain, scaled by ``\alpha``. This continues until all ``M_{\text{train}} = 200`` measurements are included (40 stages), after which the final sampling run draws ``K = 10^5`` samples without thinning for diagnostic analysis.
+At each stage, the sampler incorporates ``M_{\text{chunk}} = 5`` additional measurements into the likelihood and draws ``K_{\text{stage}} = 2000`` samples after a burn-in of ``K_b = 800``. All sample counts refer to MH iterations: a rejected proposal repeats the current state of the chain and is counted as a sample. The proposal covariance is initialized from the prior and then updated at each stage using the empirical covariance of the chain, scaled by ``\alpha``. This continues until all ``M_{\text{train}} = 200`` measurements are included (40 stages), after which the final sampling run draws ``K = 10^5`` samples without thinning for diagnostic analysis.
 
 ```julia
 MH_samples, acceptance_ratio, runtime_sampling = staged_ODE_MH(
@@ -112,16 +112,16 @@ The proposal scaling ``\alpha`` should yield an acceptance rate of approximately
 
 ## Determining the Thinning Factor
 
-The ``K = 10^5`` samples from the diagnostic run above are used to determine an appropriate thinning interval. We compute the normalized autocorrelation functions (ACFs) of the model parameters and initial state components up to a maximum lag of 50:
+The ``K = 10^5`` samples from the diagnostic run above are used to determine an appropriate thinning interval. We compute the normalized autocorrelation functions (ACFs) of the model parameters and initial state components up to a maximum lag of 100:
 
 ```julia
-max_lag = 50
+max_lag = 100
 autocorrelation = compute_autocorrelation(MH_samples; max_lag=max_lag)
 ```
 
 ![Autocorrelation functions of the MH samples](../assets/autocorrelation.svg)
 
-The figure shows the normalized ACFs of the model parameters ``(p_2, p_3, n)`` (red) and the initial state components ``\boldsymbol{x}(-T_{\text{train}})`` (green). The autocorrelation of all components decays substantially within a lag of 25. Based on this, we apply a thinning factor of ``k_d = 25`` in all subsequent experiments, so that the retained samples exhibit negligible empirical autocorrelation.
+The figure shows the normalized ACFs of the model parameters ``(p_2, p_3, n)`` (red) and the initial state components ``\boldsymbol{x}(-T_{\text{train}})`` (green). The autocorrelation of all components has decayed to negligible values well within a lag of 75. Based on this, we apply a thinning factor of ``k_d = 75`` in all subsequent experiments, so that the retained samples exhibit negligible empirical autocorrelation.
 
 The effective sample size (ESS) provides a complementary summary of sampling efficiency:
 

@@ -9,8 +9,8 @@ Run a Metropolis-Hastings (MH) sampler with ODE-integrated latent trajectory to 
 - `y`: output measurements
 - `t_span`: timespan of the training trajectory
 - `K`: number of models/scenarios to be sampled
-- `K_b`: length of the burn in period
-- `k_d`: number of models/scenarios to be skipped to decrease correlation (thinning)
+- `K_b`: length of the burn in period (in MH iterations)
+- `k_d`: number of MH iterations to be skipped between retained samples to decrease correlation (thinning)
 - `f_theta!`: dynamics function parametrized by theta (mutating); has inputs ``(\\dot{x}, \\theta, x, u, t)``
 - `g_theta!`: measurement function parametrized by theta (mutating); has inputs ``(g, \\theta, x, u, t)``
 - `log_pdf_w_theta`: function that returns the logarithm of the probability density function of the measurement noise parametrized by theta; has inputs ``(\\theta, w)``
@@ -30,8 +30,8 @@ Run a Metropolis-Hastings (MH) sampler with ODE-integrated latent trajectory to 
 - `runtime`: runtime of the sampling process
 """
 function ODE_MH(u_t::Function, t_m::AbstractVector{<:AbstractFloat}, y::AbstractMatrix{<:AbstractFloat}, t_span::Tuple{Float64,Float64}, K::Int, K_b::Int, k_d::Int, f_theta!::Function, g_theta!::Function, log_pdf_w_theta::Function, log_pdf_theta::Function, theta_0::AbstractVector{<:AbstractFloat}, log_pdf_x_init::Function, x_init_0::AbstractVector{<:AbstractFloat}, propose_z::Function, log_proposal_ratio_z::Function; ODE_solver=RK4(), ODE_solver_opts=(dt=0.1, adaptive=false), print_progress=true)
-    # Total number of samples to be generated
-    K_total = K_b + 1 + (K - 1) * (k_d + 1)
+    # Total number of MH iterations (length of the Markov chain including the initial state)
+    N = K_b + 1 + (K - 1) * (k_d + 1)
 
     # Get number of parameters, etc.
     n_theta = length(theta_0)
@@ -43,14 +43,43 @@ function ODE_MH(u_t::Function, t_m::AbstractVector{<:AbstractFloat}, y::Abstract
     for k in 1:K
         MH_samples[k] = MH_sample(Array{Float64}(undef, n_theta), Array{Float64}(undef, n_x), Array{Float64}(undef, n_x))
     end
-    accepted_samples = 0
+    n_accepted = 0
     current_sample = 1
-    n_proposals = 0
-    z = vcat(theta_0, x_init_0)
-    log_likelihood = -Inf
-    log_p_theta = -Inf
-    log_p_x_init = -Inf
     t_save = vcat(t_m, t_span[2])
+
+    # Simulate system forward using a numerical ODE solver and compute the log-likelihood of the measurements.
+    function simulate_log_likelihood(theta, x_init)
+        # Update model, i.e., update right hand side of ODE, measurement function, and noise distribution.
+        ode_rhs(dx, x, p, t) = f_theta!(dx, theta, x, u_t(t), t)
+        g!(g, x, u, t) = g_theta!(g, theta, x, u, t)
+        log_pdf_w(w) = log_pdf_w_theta(theta, w)
+
+        prob = ODEProblem(ode_rhs, x_init, t_span, theta)
+        sol = solve(prob, ODE_solver; ODE_solver_opts..., saveat=t_save)
+        x_sim = Array(sol)
+
+        # Likelihood based on measurement model (logarithms are used for numerical reasons).
+        log_likelihood_sim = 0.0
+        g_sim = Array{Float64}(undef, size(y, 1))
+        w = Array{Float64}(undef, size(y, 1))
+        for m in 1:M
+            g!(g_sim, x_sim[:, m], u_t(t_m[m]), t_m[m])
+            w .= y[:, m] - g_sim
+            log_likelihood_sim += log_pdf_w(w)
+        end
+
+        return log_likelihood_sim, x_sim[:, end]
+    end
+
+    # Store the k-th state of the chain if the burn-in period is reached and the sample is not removed by thinning.
+    function store_sample!(k, theta, x_init, x_t)
+        if (K_b < k) && (mod(k - (K_b + 1), k_d + 1) == 0)
+            MH_samples[current_sample].theta .= theta
+            MH_samples[current_sample].x_t .= x_t
+            MH_samples[current_sample].x_init .= x_init
+            current_sample += 1
+        end
+    end
 
     # Time MH sampler.
     sampling_timer = time()
@@ -59,73 +88,59 @@ function ODE_MH(u_t::Function, t_m::AbstractVector{<:AbstractFloat}, y::Abstract
         println("### Started MH sampling")
     end
 
-    while accepted_samples < K_total
+    # Initialize the chain with z[1] = [theta_0; x_init_0].
+    theta = copy(theta_0)
+    x_init = copy(x_init_0)
+    z = vcat(theta, x_init)
+    log_p_theta = log_pdf_theta(theta)
+    log_p_x_init = log_pdf_x_init(x_init)
+    if !isfinite(log_p_theta) || !isfinite(log_p_x_init)
+        error("Initial value z[1] = [theta_0; x_init_0] has zero prior density.")
+    end
+    log_likelihood, x_t = simulate_log_likelihood(theta, x_init)
+    store_sample!(1, theta, x_init, x_t)
+
+    for k in 1:N-1
         # Propose new parameters and a new initial state.
-        n_proposals += 1
         z_prop = propose_z(z)
         theta_prop = z_prop[1:n_theta]
         x_init_prop = z_prop[n_theta+1:end]
         log_p_theta_prop = log_pdf_theta(theta_prop)
         log_p_x_init_prop = log_pdf_x_init(x_init_prop)
-        if !isfinite(log_p_theta_prop) || !isfinite(log_p_x_init_prop)
-            continue
+
+        # Proposals outside the support of the prior are rejected without simulating the system.
+        accepted = false
+        if isfinite(log_p_theta_prop) && isfinite(log_p_x_init_prop)
+            log_likelihood_prop, x_t_prop = simulate_log_likelihood(theta_prop, x_init_prop)
+
+            # Compute acceptance probability.
+            log_acceptance_ratio = log_likelihood_prop - log_likelihood + log_p_theta_prop - log_p_theta + log_p_x_init_prop - log_p_x_init + log_proposal_ratio_z(z, z_prop)
+
+            # Accept or reject the proposal.
+            if log(rand()) < log_acceptance_ratio
+                accepted = true
+                n_accepted += 1
+                theta = theta_prop
+                x_init = x_init_prop
+                z = z_prop
+                x_t = x_t_prop
+                log_likelihood = log_likelihood_prop
+                log_p_theta = log_p_theta_prop
+                log_p_x_init = log_p_x_init_prop
+            end
         end
 
-        # Update model, i.e., update right hand side of ODE, measurement function, and noise distribution.
-        ode_rhs(dx, x, p, t) = f_theta!(dx, theta_prop, x, u_t(t), t)
-        g!(g, x, u, t) = g_theta!(g, theta_prop, x, u, t)
-        log_pdf_w(w) = log_pdf_w_theta(theta_prop, w)
+        # z[k+1] is the proposal if accepted, otherwise the current state is repeated.
+        store_sample!(k + 1, theta, x_init, x_t)
 
-        # Simulate system forward using a numerical ODE solver to determine likelihood of proposal.
-        prob = ODEProblem(ode_rhs, x_init_prop, t_span, theta_prop)
-        sol = solve(prob, ODE_solver; ODE_solver_opts..., saveat=t_save)
-        x_prop = Array(sol)
-
-        # Likelihood update based on measurement model (logarithms are used for numerical reasons).
-        log_likelihood_prop = 0.0
-        g_prop = Array{Float64}(undef, size(y, 1))
-        w = Array{Float64}(undef, size(y, 1))
-        for m in 1:M
-            g!(g_prop, x_prop[:, m], u_t(t_m[m]), t_m[m])
-            w .= y[:, m] - g_prop
-            log_likelihood_prop += log_pdf_w(w)
-        end
-
-        # Compute acceptance probability.
-        log_acceptance_ratio = log_likelihood_prop - log_likelihood + log_p_theta_prop - log_p_theta + log_p_x_init_prop - log_p_x_init + log_proposal_ratio_z(z, z_prop)
-
-        # Accept or reject the proposal.
-        if log(rand()) < log_acceptance_ratio
-            accepted_samples += 1
-            theta = theta_prop
-            x_init = x_init_prop
-            z = vcat(theta, x_init)
-            log_likelihood = log_likelihood_prop
-            log_p_theta = log_p_theta_prop
-            log_p_x_init = log_p_x_init_prop
-
-            # Use sample if the burn-in period is reached and the sample is not removed by thinning.
-            if (K_b < accepted_samples) && (mod(accepted_samples - (K_b + 1), k_d + 1) == 0)
-                MH_samples[current_sample].theta .= theta_prop
-                MH_samples[current_sample].x_t .= x_prop[:, end]
-                MH_samples[current_sample].x_init .= x_init_prop
-                current_sample += 1
-            end
-
-            # Print progress.
-            if print_progress
-                @printf("\e[32m%i/%i samples accepted\e[0m\n", accepted_samples, K_total)
-            end
-        else
-            # Print progress.
-            if print_progress
-                @printf("\e[31m%i/%i samples accepted\e[0m\n", accepted_samples, K_total)
-            end
+        # Print progress.
+        if print_progress
+            @printf("%s%i/%i iterations (%i accepted)\e[0m\n", accepted ? "\e[32m" : "\e[31m", k + 1, N, n_accepted)
         end
     end
 
     runtime = time() - sampling_timer
-    acceptance_ratio = ((K_total - 1) / n_proposals) * 100
+    acceptance_ratio = (n_accepted / (N - 1)) * 100
 
     # Print runtime and acceptance ratio.
     if print_progress
